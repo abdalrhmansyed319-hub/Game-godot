@@ -119,21 +119,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/godot/export_templates
-          key: godot-export-templates-4.7.2-stable
+          key: godot-export-templates-4.7.2.stable-v2
 
       - name: Install Godot and export templates
         if: steps.templates-cache.outputs.cache-hit != 'true'
         run: |
           set -e
           VERSION=4.7.2-stable
+          # The release tag uses a hyphen; the export-template directory Godot
+          # looks in uses the dotted version. Getting this wrong produces
+          # "No export template found at the expected path".
+          TDIR=4.7.2.stable
           curl -sSL -o /tmp/godot.zip \
             "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_linux.x86_64.zip"
           curl -sSL -o /tmp/templates.zip \
             "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_export_templates.tpz"
-          mkdir -p ~/.local/share/godot/export_templates/${VERSION}
+          mkdir -p ~/.local/share/godot/export_templates/${TDIR}
           unzip -o -q /tmp/templates.zip -d /tmp/templates
-          cp /tmp/templates/templates/* ~/.local/share/godot/export_templates/${VERSION}/
-          ls -la ~/.local/share/godot/export_templates/${VERSION}/ | head -20
+          cp /tmp/templates/templates/* ~/.local/share/godot/export_templates/${TDIR}/
+          ls -la ~/.local/share/godot/export_templates/${TDIR}/ | head -20
 
       - name: Install Godot editor binary
         run: |
