@@ -276,8 +276,53 @@ def check_class_names(scripts: List[str]) -> Dict[str, str]:
         name = match.group(1)
         if name in seen:
             err(f"class_name '{name}' declared twice: {rel(seen[name])} and {rel(path)}")
+        if name in GODOT_BUILTINS:
+            err(f"{rel(path)}: class_name '{name}' shadows a Godot built-in class")
         seen[name] = path
     return seen
+
+
+# Godot 4 global class names that a local enum/class/const must not shadow.
+# A collision parses locally but breaks references from other scripts, and the
+# resulting "Identifier not declared" error points at the wrong file.
+GODOT_BUILTINS = {
+    "Path", "Path2D", "Path3D", "PathFollow2D", "PathFollow3D", "Node", "Node2D",
+    "Node3D", "Control", "Resource", "Object", "RefCounted", "SceneTree",
+    "Area2D", "Area3D", "Body2D", "Timer", "Tween", "AnimationPlayer",
+    "AnimationTree", "Camera2D", "Camera3D", "CanvasItem", "CanvasLayer",
+    "CharacterBody2D", "CharacterBody3D", "CollisionShape2D", "CollisionShape3D",
+    "ColorRect", "Label", "Button", "Texture2D", "Texture3D", "Image",
+    "InputEvent", "InputEventKey", "InputEventMouseButton", "PhysicsBody2D",
+    "RigidBody2D", "StaticBody2D", "Sprite2D", "Sprite3D", "TileMap",
+    "TileMapLayer", "Viewport", "Window", "AudioStream", "AudioStreamPlayer",
+    "PackedScene", "Script", "GDScript", "Material", "Shader", "StyleBox",
+    "Theme", "Light2D", "PointLight2D", "DirectionalLight2D", "Parallax2D",
+    "ParallaxBackground", "ParallaxLayer", "Marker2D", "RayCast2D",
+    "Shape2D", "Shape3D", "Curve", "Curve2D", "Curve3D", "Gradient",
+    "RandomNumberGenerator", "RegEx", "JSON", "Time", "Engine", "OS",
+    "DisplayServer", "RenderingServer", "PhysicsServer2D", "ProjectSettings",
+    "Input", "InputMap", "Translation", "NavigationAgent2D", "NavigationRegion2D",
+}
+
+DECL_RE = re.compile(r"^\s*(?:enum|class|const)\s+(\w+)", re.M)
+
+
+def check_builtin_shadowing(scripts: List[str]) -> None:
+    """Flag local enum/class/const declarations that shadow a Godot built-in."""
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+        for lineno, line in enumerate(lines, start=1):
+            match = DECL_RE.match(line)
+            if not match:
+                continue
+            name = match.group(1)
+            if name in GODOT_BUILTINS:
+                err(
+                    f"{rel(path)}:{lineno}: '{name}' shadows Godot built-in class "
+                    f"{name}; other scripts referencing it will fail to parse"
+                )
+
 
 
 # ------------------------------------------- 6. .new() on a Node-derived class
@@ -450,6 +495,7 @@ def main() -> int:
     check_input_actions(scripts, project)
     check_autoloads(project)
     class_map = check_class_names(scripts)
+    check_builtin_shadowing(scripts)
     check_new_on_node(scripts, class_map)
     check_lexical(scripts)
     check_data()

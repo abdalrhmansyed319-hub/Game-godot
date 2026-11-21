@@ -24,9 +24,9 @@ static func from_dict(dict: Dictionary) -> SkillDef:
 		return null
 	data.display_name = String(dict.get("display_name", data.id))
 	match String(dict.get("path", "blade")).to_lower():
-		"lantern": data.path = Path.LANTERN
-		"anchor": data.path = Path.ANCHOR
-		_: data.path = Path.BLADE
+		"lantern": data.path = SkillPath.LANTERN
+		"anchor": data.path = SkillPath.ANCHOR
+		_: data.path = SkillPath.BLADE
 	data.tier = int(dict.get("tier", data.tier))
 	data.cost = int(dict.get("cost", data.cost))
 	data.requires.clear()
