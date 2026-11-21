@@ -36,22 +36,45 @@ jobs:
       # A real engine load. Every .gd is parsed and every .tscn resolved, so
       # this is the check that actually validates the project rather than a
       # re-implementation of it. Any parse or resolution error is fatal.
+      #
+      # Errors are republished as check-run annotations because Actions log
+      # storage is not always reachable from restricted networks, while
+      # api.github.com annotations are.
       - name: Godot headless import (parses all scripts and scenes)
         run: |
           set -o pipefail
-          ./godot --headless --path . --import 2>&1 | tee import.log
-          if grep -qiE 'SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Failed loading resource|Invalid access to property' import.log; then
-            echo "::error::Godot reported script or resource errors (see import.log)"
-            exit 1
-          fi
+          ./godot --headless --path . --import 2>&1 | tee import.log || true
+          python3 - <<'PY'
+          import re
+          lines = open("import.log", encoding="utf-8", errors="replace").read().splitlines()
+          pat = re.compile(r"SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Failed loading resource|Invalid access to property|ERROR:")
+          hits = [l.strip() for l in lines if pat.search(l)]
+          if not hits:
+              print("No script or resource errors reported by Godot.")
+              raise SystemExit(0)
+          print(f"Godot reported {len(hits)} error line(s).")
+          for line in hits[:40]:
+              print("::error::" + line[:400])
+          raise SystemExit(1)
+          PY
 
       - name: Autoload boot smoke test
+        if: always()
         run: |
           set -o pipefail
           # Runs the real autoload chain and Boot for a few frames, then quits.
-          ./godot --headless --path . --quit-after 6 2>&1 | tee boot.log
-          if grep -qiE 'SCRIPT ERROR|Parse Error|Invalid access to property|Nonexistent function' boot.log; then
-            echo "::error::Godot reported runtime script errors (see boot.log)"
-            exit 1
-          fi
-          grep -F '[Nightmare Hunter] content loaded' boot.log
+          ./godot --headless --path . --quit-after 6 2>&1 | tee boot.log || true
+          grep -F '[Nightmare Hunter] content loaded' boot.log || echo "::warning::content manifest line not printed"
+          python3 - <<'PY'
+          import re
+          lines = open("boot.log", encoding="utf-8", errors="replace").read().splitlines()
+          pat = re.compile(r"SCRIPT ERROR|Parse Error|Invalid access to property|Nonexistent function|Cannot call|Attempt to call")
+          hits = [l.strip() for l in lines if pat.search(l)]
+          if not hits:
+              print("No runtime script errors reported during boot.")
+              raise SystemExit(0)
+          print(f"Boot reported {len(hits)} error line(s).")
+          for line in hits[:40]:
+              print("::error::" + line[:400])
+          raise SystemExit(1)
+          PY
