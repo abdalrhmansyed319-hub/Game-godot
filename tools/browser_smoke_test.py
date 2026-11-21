@@ -26,6 +26,12 @@ import time
 from functools import partial
 
 
+def note(message: str) -> None:
+    """Print, and also publish as a CI annotation (stdout is often unreadable)."""
+    print(message)
+    print("::notice::" + message)
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: browser_smoke_test.py <build-dir> [output-dir]")
@@ -93,7 +99,7 @@ def main() -> int:
                     return r;
                 }"""
             )
-            print(f"canvas: {drawn}")
+            note(f"canvas dimensions: {drawn}")
             if not drawn or not drawn.get("w") or not drawn.get("h"):
                 failures.append(f"canvas has no usable dimensions: {drawn}")
 
@@ -108,7 +114,7 @@ def main() -> int:
                     return style.display === 'none' ? 'hidden' : (el.innerText || 'visible-empty');
                 }"""
             )
-            print(f"engine status element: {status!r}")
+            note(f"engine status element: {status!r}")
 
             # Resize responsiveness is an explicit jam requirement.
             print("testing viewport resize...")
@@ -117,7 +123,7 @@ def main() -> int:
             time.sleep(3)
             after = page.evaluate("() => { const c=document.querySelector('canvas'); return c?[c.width,c.height]:null; }")
             page.screenshot(path=os.path.join(out_dir, "resized.png"))
-            print(f"canvas before resize: {before}, after: {after}")
+            note(f"canvas resize {before} -> {after}")
             if before and after and before == after:
                 print("WARN  canvas did not change size on resize; verify canvas_resize_policy")
 

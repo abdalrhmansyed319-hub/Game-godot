@@ -25,6 +25,17 @@ def human(n: int) -> str:
     return f"{n / (1024 * 1024):.2f} MB"
 
 
+def note(message: str) -> None:
+    """Print, and also publish as a CI annotation.
+
+    Actions stores job logs on blob storage that is unreachable from some
+    networks, while check-run annotations come from api.github.com. Anything
+    worth reporting has to go out as an annotation to be readable at all.
+    """
+    print(message)
+    print("::notice::" + message)
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: web_export_checks.py <build-dir>")
@@ -61,8 +72,8 @@ def main() -> int:
     core = [n for n in files if n.endswith((".html", ".wasm", ".js", ".pck", ".png", ".svg", ".json"))]
     first_frame = sum(files[n] for n in core)
     total = sum(files.values())
-    print(f"OK  first-frame payload: {human(first_frame)} (limit {human(MAX_FIRST_FRAME_BYTES)})")
-    print(f"OK  total build size:    {human(total)}")
+    note(f"first-frame payload {human(first_frame)} of {human(MAX_FIRST_FRAME_BYTES)} budget")
+    note(f"total build size {human(total)} across {len(files)} files")
     if first_frame >= MAX_FIRST_FRAME_BYTES:
         failures.append(
             f"first-frame payload is {human(first_frame)}, over the {human(MAX_FIRST_FRAME_BYTES)} target"
@@ -81,7 +92,7 @@ def main() -> int:
             'Set variant/thread_support=false in export_presets.cfg.'
         )
     else:
-        print("OK  no worker script: build is single-threaded, no COOP/COEP needed")
+        note("no worker script: build is single-threaded, so no COOP/COEP headers are needed")
 
     js = [n for n in files if n.endswith(".js")]
     for name in js:
