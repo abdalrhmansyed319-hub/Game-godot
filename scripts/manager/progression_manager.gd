@@ -8,10 +8,8 @@ signal attribute_changed(attribute: StringName, value: int)
 signal skill_points_changed(points: int)
 signal skill_learned(skill_id: StringName, path: int)
 
-## Named so it is globally addressable from other scripts (e.g. SkillDef) and
-## so it does not collide with Godot's built-in `Path` node class, which an
-## `enum Path` would shadow and break references elsewhere.
-enum SkillPath { BLADE, LANTERN, ANCHOR }
+## Path constants live in the global SkillPath class, not as a local enum, so
+## other scripts can reference them.
 
 const EXPERIENCE_PER_LEVEL_BASE: int = 100
 const EXPERIENCE_CURVE: float = 1.35

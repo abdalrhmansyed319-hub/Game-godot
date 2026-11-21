@@ -282,6 +282,22 @@ def check_class_names(scripts: List[str]) -> Dict[str, str]:
     return seen
 
 
+# Engine singletons and math/variant types that legitimately take CONSTANT access.
+GODOT_BUILTIN_CONSTANTS = {
+    "Vector2", "Vector2i", "Vector3", "Vector3i", "Vector4", "Vector4i", "Color",
+    "Rect2", "Rect2i", "Transform2D", "Transform3D", "Basis", "Quaternion",
+    "Plane", "AABB", "Key", "MouseButton", "JoyButton", "JoyAxis", "Error",
+    "Side", "Corner", "Orientation", "Variant", "Array", "Dictionary", "String",
+    "StringName", "PackedByteArray", "PackedStringArray", "PackedInt32Array",
+    "PackedFloat32Array", "PackedVector2Array", "PackedColorArray", "Callable",
+    "Signal", "NodePath", "RID", "Projection", "Plane3D", "FileAccess",
+    "DirAccess", "AudioStreamWAV", "AudioStream", "AudioStreamPlayer",
+    "Image", "ImageTexture", "Font", "FontFile", "Gradient", "GradientTexture2D",
+    "StyleBoxFlat", "Theme", "Shortcut", "InputEvent", "InputEventAction",
+    "PhysicsRayQueryParameters2D", "PhysicsRayQueryParameters3D", "Curve",
+    "CurveTexture", "Noise", "FastNoiseLite", "RandomNumberGenerator",
+}
+
 # Godot 4 global class names that a local enum/class/const must not shadow.
 # A collision parses locally but breaks references from other scripts, and the
 # resulting "Identifier not declared" error points at the wrong file.
@@ -321,6 +337,63 @@ def check_builtin_shadowing(scripts: List[str]) -> None:
                 err(
                     f"{rel(path)}:{lineno}: '{name}' shadows Godot built-in class "
                     f"{name}; other scripts referencing it will fail to parse"
+                )
+
+
+def autoload_names(project_path: str) -> Set[str]:
+    with open(project_path, encoding="utf-8") as handle:
+        text = handle.read()
+    section = re.search(r"^\[autoload\]$(.*?)(?=^\[|\Z)", text, re.M | re.S)
+    if not section:
+        return set()
+    return set(re.findall(r'^(\w+)="\*?res://', section.group(1), re.M))
+
+
+## Matches `Owner.CONSTANT` only when Owner is the FIRST segment of the
+## expression. The negative lookbehind is essential: without it, a chain like
+## `NightmareData.ResolutionKind.DESTROY` cannot match at `NightmareData`
+## (the second group must be all-caps), so the engine skips ahead and matches
+## `ResolutionKind.DESTROY`, blaming the enum member instead of the real owner.
+QUALIFIED_CONST_RE = re.compile(r"(?<![.\w])([A-Z][A-Za-z0-9_]*)\.([A-Z][A-Z0-9_]*)\b")
+
+
+def check_unresolvable_constants(
+    scripts: List[str], class_map: Dict[str, str], project_path: str
+) -> None:
+    """Flag `Name.CONSTANT` where Name is not a globally addressable type.
+
+    In Godot 4 only `class_name` scripts, autoload singletons and engine classes
+    are globally visible. An enum declared inside one script cannot be referenced
+    from another, and the resulting parse error is reported at the *referencing*
+    file with a cascade of "Failed to compile depended scripts" elsewhere, which
+    makes it expensive to diagnose from the engine alone.
+    """
+    known: Set[str] = set(class_map.keys())
+    known |= autoload_names(project_path)
+    known |= GODOT_BUILTINS
+    known |= GODOT_BUILTIN_CONSTANTS
+
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+        # Names this script declares itself are always in scope inside it.
+        local: Set[str] = {m.group(1) for m in DECL_RE.finditer("".join(lines))}
+        own_class = None
+        text = "".join(lines)
+        m = re.search(r"^class_name\s+(\w+)", text, re.M)
+        if m:
+            own_class = m.group(1)
+
+        for lineno, line in enumerate(lines, start=1):
+            code = line.split("#", 1)[0]
+            for match in QUALIFIED_CONST_RE.finditer(code):
+                owner = match.group(1)
+                if owner in known or owner in local or owner == own_class:
+                    continue
+                err(
+                    f"{rel(path)}:{lineno}: '{owner}.{match.group(2)}' — '{owner}' is "
+                    f"not a class_name, autoload or engine class, so this will not "
+                    f"parse in Godot"
                 )
 
 
@@ -496,6 +569,7 @@ def main() -> int:
     check_autoloads(project)
     class_map = check_class_names(scripts)
     check_builtin_shadowing(scripts)
+    check_unresolvable_constants(scripts, class_map, project)
     check_new_on_node(scripts, class_map)
     check_lexical(scripts)
     check_data()
