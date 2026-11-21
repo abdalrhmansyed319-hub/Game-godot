@@ -148,10 +148,47 @@ jobs:
       - name: Import project
         run: ./godot --headless --path . --import
 
+      - name: Report installed export templates
+        run: |
+          echo "--- template directories ---"
+          ls -la ~/.local/share/godot/export_templates/ || echo "no export_templates directory"
+          echo "--- web templates present ---"
+          find ~/.local/share/godot/export_templates -name 'web*' -printf '%s\t%p\n' 2>/dev/null | sort || echo "none found"
+          echo "--- godot version ---"
+          ./godot --version
+
       - name: Export Web build
         run: |
+          set -o pipefail
           mkdir -p export/web
-          ./godot --headless --path . --export-release "Web" export/web/index.html
+          ./godot --headless --path . --export-release "Web" export/web/index.html 2>&1 | tee export.log || true
+          python3 - <<'PY'
+          import glob, os, re, subprocess
+          lines = open("export.log", encoding="utf-8", errors="replace").read().splitlines()
+          pat = re.compile(r"ERROR|error|Cannot|cannot|Failed|failed|Missing|missing|No export|not found|Unable")
+          hits = [l.strip() for l in lines if pat.search(l)]
+          produced = os.path.exists("export/web/index.html")
+
+          # Diagnostics as annotations, since Actions log storage is unreachable
+          # from restricted networks and annotations are the readable channel.
+          home = os.path.expanduser("~")
+          tdirs = sorted(glob.glob(f"{home}/.local/share/godot/export_templates/*"))
+          web = sorted(glob.glob(f"{home}/.local/share/godot/export_templates/*/web*"))
+          print("::notice::template dirs: " + (", ".join(tdirs) or "NONE"))
+          print(f"::notice::web templates found: {len(web)}")
+          for w in web[:12]:
+              print("::notice::  " + os.path.basename(w))
+          print("::notice::index.html produced: " + str(produced))
+          if produced:
+              print("::notice::build files: " + ", ".join(sorted(os.listdir("export/web"))))
+
+          print(f"export log: {len(lines)} line(s), {len(hits)} matching error patterns")
+          for line in hits[:40]:
+              print("::error::" + line[:400])
+          if produced and not hits:
+              print("Export produced a build with no errors logged.")
+          raise SystemExit(0 if produced and not hits else 1)
+          PY
 
       - name: Assert OpenGame requirements on the build
         run: python3 tools/web_export_checks.py export/web
