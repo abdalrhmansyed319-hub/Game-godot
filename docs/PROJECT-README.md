@@ -51,10 +51,32 @@ engine.** See the root `README.md`.
 | Check | How | Status |
 | --- | --- | --- |
 | Cross-reference / data integrity | `python3 tools/check_project.py` | **Passing**; each rule validated by injecting a known fault |
-| Real engine load (parse all scripts, resolve all scenes) | CI: Godot 4.7.2 headless `--import` | **Passing** (run 44957180071) |
-| Autoload boot + content manifest | CI: headless `--quit-after 6` | **Passing** (run 44957180071) |
+| Real engine load (parse all scripts, resolve all scenes) | CI: Godot 4.7.2 headless `--import` | **Passing** |
+| Autoload boot + content manifest | CI: headless `--quit-after 6` | **Passing** |
+| Web export + jam constraints | CI: `--export-release "Web"` + `tools/web_export_checks.py` | **Passing** |
+| Runs in a real browser | CI: Playwright/Chromium over plain HTTP | **Passing** (run 44958236309) |
 | Playtest / game feel | Manual, in the editor | **Not done** |
-| Web export | `export_presets.cfg` + browser test | **Not started** |
+
+### M2 — Web export: measured results
+
+| Measurement | Result | Jam limit |
+| --- | --- | --- |
+| Loads in headless Chromium over plain HTTP | yes, no COOP/COEP headers | required |
+| Canvas | 1280×720 | — |
+| Resize | 1280×720 → 960×600 | must respond to resize |
+| Console / page errors | none | — |
+| Thread support | none (no `worker.js`) | avoids `SharedArrayBuffer` |
+| `.pck` | unencrypted, GDPC magic | encrypted packs are rejected |
+| First-frame payload | **38.17 MB** / 9 files | < 50 MB — ~12 MB headroom |
+
+**Risk R1 is retired.** A single-threaded Godot 4 Web export runs on plain
+static hosting, which is what OpenGame serves. The payload is almost entirely
+the Godot Web runtime; game data is negligible, so headroom grows slowly, but
+it must be watched as content is added.
+
+Not yet proven: that a *frame is visibly rendered*. The test asserts the canvas
+exists, has dimensions, and resizes, with no console or page errors. It does not
+yet sample pixels. `boot.png` and `resized.png` are attached to the CI run.
 
 The Godot engine binary cannot be downloaded inside the agent sandbox
 (`github.com` release assets redirect to `objects.githubusercontent.com`, which
