@@ -25,9 +25,17 @@ This Drive folder is the center for the **Game-godot** project. Everything proje
 3. Name builds `GameGodot_v0.1.0_platform.zip` so versions sort correctly.
 4. Keep large art/audio sources in Drive, export-ready versions in the repo.
 
+## Documents
+
+| Document | What it is |
+| --- | --- |
+| [`NIGHTMARE_HUNTER-GDD.md`](NIGHTMARE_HUNTER-GDD.md) | The full original design. Long-term vision and creative authority. |
+| [`NIGHTMARE_HUNTER_OPENGAME_JAM_GDD.md`](NIGHTMARE_HUNTER_OPENGAME_JAM_GDD.md) | **What we are actually shipping.** Jam scope, cut list with reasons, verified competition constraints, milestones, acceptance criteria. |
+
 ## Current status
 
-**Prototype stage (GDD §22) is implemented.** See the root `README.md`.
+**Prototype stage (GDD §22) is implemented and now compiles under the real
+engine.** See the root `README.md`.
 
 - Godot 4.7 project: 39 scripts, 6 scenes, 21 authored data files.
 - Systems layer complete: combat, Resonance/Revelation, the three instruments,
@@ -42,13 +50,29 @@ This Drive folder is the center for the **Game-godot** project. Everything proje
 
 | Check | How | Status |
 | --- | --- | --- |
-| Cross-reference / data integrity | `python3 tools/check_project.py` | Passing; validated by 10 injected faults |
-| Real engine load (parse all scripts, resolve all scenes) | CI: `.github/workflows/godot.yml` | Runs on push |
-| Autoload boot + content manifest | CI: headless `--quit-after` | Runs on push |
+| Cross-reference / data integrity | `python3 tools/check_project.py` | **Passing**; each rule validated by injecting a known fault |
+| Real engine load (parse all scripts, resolve all scenes) | CI: Godot 4.7.2 headless `--import` | **Passing** (run 44957180071) |
+| Autoload boot + content manifest | CI: headless `--quit-after 6` | **Passing** (run 44957180071) |
 | Playtest / game feel | Manual, in the editor | **Not done** |
+| Web export | `export_presets.cfg` + browser test | **Not started** |
 
-The Godot engine binary cannot be downloaded inside the agent sandbox, so the
-engine-level checks run in GitHub Actions rather than locally.
+The Godot engine binary cannot be downloaded inside the agent sandbox
+(`github.com` release assets redirect to `objects.githubusercontent.com`, which
+is blocked), so the engine-level checks run in GitHub Actions. Their errors are
+republished as check-run annotations because Actions log storage is not
+reachable from the sandbox either.
+
+### Bugs the engine found that static checks missed
+
+Worth recording, because both produced misleading cascades:
+
+1. `enum Path` shadowed Godot's built-in `Path` class.
+2. Renaming it did not help — an enum inside one script is **not** globally
+   addressable in Godot 4; only `class_name` is.
+
+Both surfaced as `Failed to compile depended scripts` across four unrelated
+files plus a runtime `Nonexistent function 'from_dict'`. `tools/check_project.py`
+now has rules for both.
 
 ### Next steps
 1. Open in Godot 4.7, playtest, tune movement and combat feel.
