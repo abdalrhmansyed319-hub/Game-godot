@@ -104,3 +104,73 @@ jobs:
           ok = report(r"SCRIPT ERROR|Parse Error|Invalid access to property|Nonexistent function|Cannot call|Attempt to call", "Godot boot")
           raise SystemExit(0 if ok else 1)
           PY
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore Godot export templates
+        id: templates-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-export-templates-4.7.2-stable
+
+      - name: Install Godot and export templates
+        if: steps.templates-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          VERSION=4.7.2-stable
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_linux.x86_64.zip"
+          curl -sSL -o /tmp/templates.zip \
+            "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates/${VERSION}
+          unzip -o -q /tmp/templates.zip -d /tmp/templates
+          cp /tmp/templates/templates/* ~/.local/share/godot/export_templates/${VERSION}/
+          ls -la ~/.local/share/godot/export_templates/${VERSION}/ | head -20
+
+      - name: Install Godot editor binary
+        run: |
+          set -e
+          VERSION=4.7.2-stable
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_linux.x86_64.zip"
+          unzip -o -q /tmp/godot.zip
+          mv Godot_v${VERSION}_linux.x86_64 godot
+          chmod +x godot
+
+      - name: Import project
+        run: ./godot --headless --path . --import
+
+      - name: Export Web build
+        run: |
+          mkdir -p export/web
+          ./godot --headless --path . --export-release "Web" export/web/index.html
+
+      - name: Assert OpenGame requirements on the build
+        run: python3 tools/web_export_checks.py export/web
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Load the exported build in a real browser
+        run: python3 tools/browser_smoke_test.py export/web artifacts
+
+      - name: Upload build and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            export/web
+            artifacts
+          if-no-files-found: warn
