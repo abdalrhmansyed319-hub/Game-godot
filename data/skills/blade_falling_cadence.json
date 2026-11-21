@@ -1,0 +1,11 @@
+{
+	"id": "blade_falling_cadence",
+	"display_name": "Falling Cadence",
+	"path": "blade",
+	"tier": 1,
+	"cost": 1,
+	"requires": [],
+	"description": "Unlocks the aerial attack chain. Certain nightmares are more vulnerable from above.",
+	"effect_key": "aerial_chain",
+	"effect_value": 1.0
+}

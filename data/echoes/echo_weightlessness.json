@@ -1,0 +1,14 @@
+{
+	"id": "echo_weightlessness",
+	"display_name": "Echo of Weightlessness",
+	"kind": "combat",
+	"source_nightmare": "bell_without_a_tongue",
+	"narrative_origin": "Left behind when the Bell's grip on gravity finally let go. You carry a small piece of the silence that used to hold the valley down.",
+	"ability_key": "gravity_flip",
+	"duration": 5.0,
+	"cooldown": 16.0,
+	"stamina_cost": 0.0,
+	"effect_description": "Temporarily inverts your personal gravity, letting you fight on the ceiling of a distorted arena.",
+	"tint": [0.62, 0.82, 1.0],
+	"audio_pitch_hz": 220.0
+}

@@ -1,0 +1,14 @@
+{
+	"id": "echo_unfinished_step",
+	"display_name": "Echo of the Unfinished Step",
+	"kind": "exploration",
+	"source_nightmare": "hollow_choir",
+	"narrative_origin": "The Choir's last verse, which you finally let it sing. It steps forward exactly once, into a place that is not there yet.",
+	"ability_key": "unfinished_step",
+	"duration": 0.35,
+	"cooldown": 6.0,
+	"stamina_cost": 0.0,
+	"effect_description": "Cross unstable dream surfaces and short gaps by taking one step that the dream has not finished building.",
+	"tint": [0.55, 0.9, 0.72],
+	"audio_pitch_hz": 660.0
+}

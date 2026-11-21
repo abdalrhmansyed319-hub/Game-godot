@@ -1,0 +1,11 @@
+{
+	"id": "lantern_pattern_reading",
+	"display_name": "Pattern Reading",
+	"path": "lantern",
+	"tier": 2,
+	"cost": 2,
+	"requires": ["lantern_wider_glow"],
+	"description": "Reading an enemy's tell correctly grants bonus Resonance. Understanding is a weapon.",
+	"effect_key": "resonance_pattern_bonus",
+	"effect_value": 0.5
+}

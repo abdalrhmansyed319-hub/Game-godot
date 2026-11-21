@@ -1,0 +1,11 @@
+{
+	"id": "anchor_wakeful_zone",
+	"display_name": "Wakeful Zone",
+	"path": "anchor",
+	"tier": 2,
+	"cost": 2,
+	"requires": ["anchor_steady_ground"],
+	"description": "The Anchor carves a temporary safe zone where distortion cannot reach you and nightmares cannot teleport.",
+	"effect_key": "safe_zone_radius",
+	"effect_value": 90.0
+}

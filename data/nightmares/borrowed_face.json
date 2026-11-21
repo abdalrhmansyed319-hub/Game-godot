@@ -1,0 +1,46 @@
+{
+	"id": "borrowed_face",
+	"display_name": "The Borrowed Face",
+	"category": "mimic",
+	"summary": "Wears the shape of whoever it last saw. Approaches with their gait, their voice, their unfinished sentences.",
+	"emotional_origin": "Someone died in the ash steps with their name unsaid over them. Without a name to keep, it began collecting other people's.",
+
+	"max_health": 95.0,
+	"contact_damage": 8.0,
+	"move_speed": 132.0,
+	"attack_damage": 12.0,
+	"attack_range": 58.0,
+	"detect_range": 340.0,
+	"attack_startup": 0.26,
+	"attack_recovery": 0.44,
+	"stagger_threshold": 26.0,
+	"dodge_chance": 0.3,
+	"can_teleport": true,
+
+	"revealed_trait": "Its own name, which no living person has spoken in eleven years.",
+	"revealed_trait_kind": "forgotten_name",
+	"damage_multiplier_when_revealed": 3.0,
+	"revelation_hint": "It copies everything except one thing: it cannot copy what it does not have. Ask it who it was.",
+	"requires_lantern_to_reveal": true,
+	"requires_anchor_to_hold": false,
+
+	"resonance_on_precise_attack": 5.0,
+	"resonance_on_counter": 19.0,
+	"resonance_on_lantern_reveal": 16.0,
+	"resonance_on_pattern_learned": 12.0,
+	"resonance_on_environment": 8.0,
+
+	"available_resolutions": ["destroy", "capture", "release", "reconcile"],
+	"capture_requirement": "Weaken it below a third of its strength while it is wearing your own face.",
+	"release_requirement": "Speak its true name aloud during the Revelation.",
+	"reconcile_requirement": "Speak its true name aloud and refuse the killing blow.",
+	"grants_echo_on_release": "echo_borrowed_faces",
+	"grants_echo_on_capture": "echo_borrowed_faces",
+
+	"journal_entry_on_discovery": "A woman on the ash steps called me by a name that is not mine, then apologised for the mistake and kept walking. She has been dead since the second frost.",
+	"journal_entry_on_understanding": "It never meant to steal. It was buried without a name and had nothing left to hold onto, so it started borrowing. Say its name back to it and the whole thing comes apart gently.",
+
+	"body_color": [0.72, 0.44, 0.5],
+	"revealed_color": [0.95, 0.95, 0.98],
+	"telegraph_color": [1.0, 0.32, 0.42]
+}

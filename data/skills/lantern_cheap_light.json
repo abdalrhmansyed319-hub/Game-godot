@@ -1,0 +1,11 @@
+{
+	"id": "lantern_cheap_light",
+	"display_name": "Frugal Flame",
+	"path": "lantern",
+	"tier": 1,
+	"cost": 1,
+	"requires": [],
+	"description": "Reveals cost less Lantern charge. Investigation should never be locked behind a resource you cannot afford.",
+	"effect_key": "lantern_cost",
+	"effect_value": -0.25
+}

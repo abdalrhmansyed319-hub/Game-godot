@@ -1,0 +1,19 @@
+{
+	"id": "hunt_bell",
+	"title": "The Bell That Stopped Ringing",
+	"kind": "hunting_contract",
+	"narrative_reason": "Nobody in the Hollow Village will look up at the bell. Eleven years of silence and not one of them can tell you why, which is its own kind of answer.",
+	"objectives": [
+		"Ask the village about the silent bell",
+		"Find the removed clapper in the drowned cellar",
+		"Stabilise the arena with the Anchor of Wakefulness",
+		"Reveal the trapped voices with the Dream Lantern",
+		"Decide the Bell's fate"
+	],
+	"target_nightmare": "bell_without_a_tongue",
+	"region": "hollow_village",
+	"reward_experience": 180,
+	"reward_fragments": 40,
+	"reward_echo": "",
+	"journal_record": "The Bell did not want to hurt the valley. It wanted to warn it. Whatever I chose, the village now has to live with the fact that they silenced the one thing trying to help them."
+}

@@ -1,0 +1,19 @@
+# Build artifacts / imports
+.godot/
+*.import
+export/
+build/
+*.pck
+*.zip
+
+# Godot editor cruft
+*.tmp
+*.translation
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling artifacts (tools/check_project.py is tracked)
+__pycache__/
+*.pyc

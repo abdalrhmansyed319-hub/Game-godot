@@ -1,0 +1,21 @@
+{
+	"id": "blade_resonant",
+	"display_name": "Resonant Form",
+	"description": "Balanced. Trades raw damage for Resonance generation and a generous counter window.",
+	"lore": "The form the Blade holds when the Hunter has stopped trying to end a fight and started trying to understand one.",
+	"light_damage": 6.0,
+	"light_startup": 0.11,
+	"light_recovery": 0.17,
+	"heavy_damage": 16.0,
+	"heavy_startup": 0.32,
+	"heavy_recovery": 0.42,
+	"charge_damage": 28.0,
+	"charge_time": 0.9,
+	"aerial_damage": 8.0,
+	"attack_range": 56.0,
+	"resonance_per_hit": 10.0,
+	"counter_window_bonus": 0.1,
+	"stagger_power": 8.0,
+	"move_speed_modifier": 1.0,
+	"blade_color": [0.98, 0.9, 0.55]
+}

@@ -1,0 +1,11 @@
+{
+	"id": "anchor_steady_ground",
+	"display_name": "Steady Ground",
+	"path": "anchor",
+	"tier": 1,
+	"cost": 1,
+	"requires": [],
+	"description": "The Anchor stabilises platforms and objects for longer, and can hold a nightmare that would otherwise slip away.",
+	"effect_key": "anchor_duration",
+	"effect_value": 1.4
+}

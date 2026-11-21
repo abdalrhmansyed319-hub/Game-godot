@@ -1,0 +1,14 @@
+{
+	"id": "echo_hollow_voice",
+	"display_name": "Echo of the Hollow Voice",
+	"kind": "investigation",
+	"source_nightmare": "bell_without_a_tongue",
+	"narrative_origin": "The warning the Bell never delivered. It rides in your throat now and wants very badly to be finished.",
+	"ability_key": "hollow_voice",
+	"duration": 0.8,
+	"cooldown": 9.0,
+	"stamina_cost": 0.0,
+	"effect_description": "Produce a sound that resonates with hidden structures, ringing out sealed doors, hollow walls and buried mechanisms.",
+	"tint": [1.0, 0.86, 0.45],
+	"audio_pitch_hz": 160.0
+}

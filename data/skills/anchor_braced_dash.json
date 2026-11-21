@@ -1,0 +1,11 @@
+{
+	"id": "anchor_braced_dash",
+	"display_name": "Braced Dash",
+	"path": "anchor",
+	"tier": 1,
+	"cost": 1,
+	"requires": [],
+	"description": "Grants a brief defensive window at the start of a dash. Short, and never a replacement for reading the attack.",
+	"effect_key": "dash_iframe_duration",
+	"effect_value": 0.12
+}

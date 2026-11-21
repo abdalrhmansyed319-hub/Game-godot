@@ -1,0 +1,51 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/journal_screen.gd" id="1_journal"]
+
+[node name="JournalScreen" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_journal")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.045, 0.09, 1)
+
+[node name="HSplit" type="HSplitContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 56.0
+offset_right = -24.0
+offset_bottom = -24.0
+split_offset = 240
+
+[node name="Categories" type="ItemList" parent="HSplit"]
+custom_minimum_size = Vector2(240, 0)
+
+[node name="Entries" type="ItemList" parent="HSplit"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="Body" type="RichTextLabel" parent="HSplit"]
+custom_minimum_size = Vector2(420, 0)
+bbcode_enabled = true
+text = "Nothing recorded here yet."
+
+[node name="BackButton" type="Button" parent="."]
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 140.0
+offset_bottom = 46.0
+text = "Back"
+
+[node name="Header" type="Label" parent="."]
+offset_left = 160.0
+offset_top = 20.0
+offset_right = 700.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 20
+text = "THE HUNTER'S JOURNAL"

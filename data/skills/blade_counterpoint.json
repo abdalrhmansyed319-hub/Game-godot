@@ -1,0 +1,11 @@
+{
+	"id": "blade_counterpoint",
+	"display_name": "Counterpoint",
+	"path": "blade",
+	"tier": 2,
+	"cost": 2,
+	"requires": ["blade_threefold_echo"],
+	"description": "A well-timed heavy attack becomes a counter: it interrupts the nightmare, opens it up and returns combat energy.",
+	"effect_key": "counter_damage_bonus",
+	"effect_value": 0.35
+}

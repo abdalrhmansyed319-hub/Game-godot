@@ -1,0 +1,46 @@
+{
+	"id": "bell_without_a_tongue",
+	"display_name": "The Bell Without a Tongue",
+	"category": "distorter",
+	"summary": "A giant floating bell ringed by fragments of abandoned voices. It never rings, and the silence is where its attacks live.",
+	"emotional_origin": "The village removed the clapper to stop the bell from warning the valley about what was coming. They bought themselves a quiet winter and lost everything after it.",
+
+	"max_health": 240.0,
+	"contact_damage": 12.0,
+	"move_speed": 46.0,
+	"attack_damage": 16.0,
+	"attack_range": 130.0,
+	"detect_range": 420.0,
+	"attack_startup": 0.55,
+	"attack_recovery": 0.85,
+	"stagger_threshold": 60.0,
+	"dodge_chance": 0.0,
+	"can_teleport": false,
+
+	"revealed_trait": "The voices trapped inside the bell, still trying to give the warning they were silenced for.",
+	"revealed_trait_kind": "trapped_voice",
+	"damage_multiplier_when_revealed": 2.2,
+	"revelation_hint": "Its vibrations bend gravity and its echoes copy the arena. Stabilise the ground with the Anchor, then let the Lantern show you what is inside.",
+	"requires_lantern_to_reveal": true,
+	"requires_anchor_to_hold": true,
+
+	"resonance_on_precise_attack": 4.0,
+	"resonance_on_counter": 15.0,
+	"resonance_on_lantern_reveal": 18.0,
+	"resonance_on_pattern_learned": 12.0,
+	"resonance_on_environment": 14.0,
+
+	"available_resolutions": ["destroy", "release", "reconcile"],
+	"capture_requirement": "",
+	"release_requirement": "Return the clapper to the bell so the warning can finally be heard.",
+	"reconcile_requirement": "Learn who ordered the bell silenced, and let the bell ring once in front of them.",
+	"grants_echo_on_release": "echo_hollow_voice",
+	"grants_echo_on_capture": "",
+
+	"journal_entry_on_discovery": "The bell hangs over the village and it has not rung in eleven years. Nobody will say why. They only say it was quieter this way.",
+	"journal_entry_on_understanding": "They took its tongue so it could not warn the valley. Every voice inside it is still trying to finish the sentence. This is not a monster guarding a place. It is a warning that was never allowed to happen.",
+
+	"body_color": [0.62, 0.55, 0.38],
+	"revealed_color": [1.0, 0.86, 0.45],
+	"telegraph_color": [0.85, 0.3, 0.55]
+}

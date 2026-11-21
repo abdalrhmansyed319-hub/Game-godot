@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/nightmares/nightmare_base.gd" id="1_nightmare"]
+[ext_resource type="Script" path="res://scripts/nightmares/nightmare_ai.gd" id="2_ai"]
+[ext_resource type="Script" path="res://scripts/combat/status_effect_system.gd" id="3_status"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="4_hitbox"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="5_hurtbox"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(26, 34)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_attack"]
+size = Vector2(70, 30)
+
+[node name="Nightmare" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_nightmare")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -17)
+shape = SubResource("RectangleShape2D_body")
+
+[node name="AI" type="Node" parent="."]
+script = ExtResource("2_ai")
+
+[node name="Status" type="Node" parent="."]
+script = ExtResource("3_status")
+
+[node name="Hitbox" type="Area2D" parent="."]
+collision_layer = 16
+collision_mask = 2
+monitoring = false
+script = ExtResource("4_hitbox")
+damage = 10.0
+kind = 5
+counterable = true
+owner_path = NodePath("..")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(34, -18)
+shape = SubResource("RectangleShape2D_attack")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 8
+script = ExtResource("5_hurtbox")
+owner_path = NodePath("..")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -17)
+shape = SubResource("RectangleShape2D_body")

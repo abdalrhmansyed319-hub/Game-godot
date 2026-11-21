@@ -1,0 +1,47 @@
+{
+	"id": "hollow_choir",
+	"display_name": "x",
+	"display_name": "The Hollow Choir",
+	"category": "fragmented",
+	"summary": "A cluster of half-formed singers that drift between the ash pillars, repeating a hymn that never reaches its last verse.",
+	"emotional_origin": "The village choir broke apart the winter the sickness came. They stopped singing together and never agreed on how the hymn was supposed to end.",
+
+	"max_health": 70.0,
+	"contact_damage": 6.0,
+	"move_speed": 118.0,
+	"attack_damage": 9.0,
+	"attack_range": 64.0,
+	"detect_range": 300.0,
+	"attack_startup": 0.34,
+	"attack_recovery": 0.5,
+	"stagger_threshold": 22.0,
+	"dodge_chance": 0.18,
+	"can_teleport": true,
+
+	"revealed_trait": "The unfinished final verse — the note it never learned to sing.",
+	"revealed_trait_kind": "repeating_memory",
+	"damage_multiplier_when_revealed": 2.6,
+	"revelation_hint": "It always stops mid-phrase before it strikes. The silence is the tell, not the sound.",
+	"requires_lantern_to_reveal": true,
+	"requires_anchor_to_hold": true,
+
+	"resonance_on_precise_attack": 6.0,
+	"resonance_on_counter": 17.0,
+	"resonance_on_lantern_reveal": 14.0,
+	"resonance_on_pattern_learned": 10.0,
+	"resonance_on_environment": 9.0,
+
+	"available_resolutions": ["destroy", "release", "reconcile"],
+	"capture_requirement": "",
+	"release_requirement": "Learn the missing verse from the choir mistress before the confrontation.",
+	"reconcile_requirement": "Discover why the choir stopped, and let the Choir finish the hymn during the Revelation.",
+	"grants_echo_on_release": "echo_unfinished_step",
+	"grants_echo_on_capture": "",
+
+	"journal_entry_on_discovery": "Something is singing in the ash fields. Three voices, maybe more. They keep stopping at the same bar, every time, like a page torn out of the middle of a song.",
+	"journal_entry_on_understanding": "It is not trying to frighten anyone. It is trying to remember. The Choir broke apart before the hymn ended and it has been repeating the part it knows ever since. If I can give it the last verse, it may simply stop.",
+
+	"body_color": [0.45, 0.62, 0.78],
+	"revealed_color": [0.98, 0.93, 0.66],
+	"telegraph_color": [0.95, 0.4, 0.35]
+}

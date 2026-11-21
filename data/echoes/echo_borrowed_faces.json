@@ -1,0 +1,14 @@
+{
+	"id": "echo_borrowed_faces",
+	"display_name": "Echo of Borrowed Faces",
+	"kind": "investigation",
+	"source_nightmare": "borrowed_face",
+	"narrative_origin": "Its name, returned. What is left over is the habit of wearing other people, which it no longer needs and you occasionally do.",
+	"ability_key": "borrowed_faces",
+	"duration": 6.0,
+	"cooldown": 20.0,
+	"stamina_cost": 0.0,
+	"effect_description": "See through imitation. Mimics within range lose their borrowed shape and reveal who they actually are.",
+	"tint": [0.85, 0.7, 0.95],
+	"audio_pitch_hz": 440.0
+}

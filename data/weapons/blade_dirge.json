@@ -1,0 +1,21 @@
+{
+	"id": "blade_dirge",
+	"display_name": "Dirge Form",
+	"description": "Slow and heavy. Breaks defences and staggers anything that blocks.",
+	"lore": "It grew this shape after the Bell. Everything the Blade absorbed that winter had been carrying weight it was never allowed to put down.",
+	"light_damage": 9.0,
+	"light_startup": 0.16,
+	"light_recovery": 0.24,
+	"heavy_damage": 26.0,
+	"heavy_startup": 0.44,
+	"heavy_recovery": 0.52,
+	"charge_damage": 44.0,
+	"charge_time": 1.15,
+	"aerial_damage": 12.0,
+	"attack_range": 66.0,
+	"resonance_per_hit": 6.0,
+	"counter_window_bonus": -0.05,
+	"stagger_power": 16.0,
+	"move_speed_modifier": 0.92,
+	"blade_color": [0.65, 0.58, 0.95]
+}

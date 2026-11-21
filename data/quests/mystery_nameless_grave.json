@@ -1,0 +1,17 @@
+{
+	"id": "mystery_nameless_grave",
+	"title": "The Nameless Grave",
+	"kind": "regional_mystery",
+	"narrative_reason": "There is a grave on the ash steps with no name on it, and the stone is older than the village that buried whoever is in it.",
+	"objectives": [
+		"Examine the unmarked grave on the ash steps",
+		"Recover the buried name plaque from the collapsed shrine",
+		"Speak the name where the Borrowed Face can hear it"
+	],
+	"target_nightmare": "borrowed_face",
+	"region": "ashen_steps",
+	"reward_experience": 120,
+	"reward_fragments": 25,
+	"reward_echo": "",
+	"journal_record": "Eleven years without a name is long enough to forget you ever had one. It took three words to give it back."
+}

@@ -1,0 +1,11 @@
+{
+	"id": "lantern_wider_glow",
+	"display_name": "Wider Glow",
+	"path": "lantern",
+	"tier": 1,
+	"cost": 1,
+	"requires": [],
+	"description": "The Lantern's reveal reaches further and holds longer.",
+	"effect_key": "lantern_radius",
+	"effect_value": 1.35
+}

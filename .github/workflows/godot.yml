@@ -1,0 +1,57 @@
+name: godot
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Cross-reference checks that do not need the engine: scene/script node
+      # paths, res:// targets, input actions, autoloads, class_name collisions,
+      # .new() on Node subclasses, data files.
+      - name: Static project checks
+        run: python3 tools/check_project.py
+
+      - name: Download Godot (matches project feature tag 4.7)
+        run: |
+          set -e
+          VERSION=4.7.2-stable
+          curl -sSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_linux.x86_64.zip"
+          unzip -o godot.zip
+          mv Godot_v${VERSION}_linux.x86_64 godot
+          chmod +x godot
+          ./godot --version
+
+      # A real engine load. Every .gd is parsed and every .tscn resolved, so
+      # this is the check that actually validates the project rather than a
+      # re-implementation of it. Any parse or resolution error is fatal.
+      - name: Godot headless import (parses all scripts and scenes)
+        run: |
+          set -o pipefail
+          ./godot --headless --path . --import 2>&1 | tee import.log
+          if grep -qiE 'SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Failed loading resource|Invalid access to property' import.log; then
+            echo "::error::Godot reported script or resource errors (see import.log)"
+            exit 1
+          fi
+
+      - name: Autoload boot smoke test
+        run: |
+          set -o pipefail
+          # Runs the real autoload chain and Boot for a few frames, then quits.
+          ./godot --headless --path . --quit-after 6 2>&1 | tee boot.log
+          if grep -qiE 'SCRIPT ERROR|Parse Error|Invalid access to property|Nonexistent function' boot.log; then
+            echo "::error::Godot reported runtime script errors (see boot.log)"
+            exit 1
+          fi
+          grep -F '[Nightmare Hunter] content loaded' boot.log
