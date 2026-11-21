@@ -1,0 +1,40 @@
+# Godot Engine
+.import/
+.godot/
+*.translation.*
+*.export_template
+
+# Exported project
+*.pck
+*.zip
+*.exe
+*.app
+*.dmg
+*.x86
+*.x86_64
+*.arm64
+*.msi
+*.macos
+
+# Save games (user-specific)
+saves/
+*.save
+*.sav
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python virtual environment (prototype)
+.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

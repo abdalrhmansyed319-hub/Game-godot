@@ -1,0 +1,113 @@
+; Project configuration for Chronoflora
+; Godot 4.x project settings
+
+config/application = {
+    "name": "Chronoflora",
+}
+
+display/window = {
+    "size": [1280, 720],
+    "title": "Chronoflora - Vertical Slice",
+    "resizable": true,
+    "vsync": "enabled",
+}
+
+display/antisaliasing = {
+    "quality": "msaa_disabled",
+}
+
+rendering/qualitys = {
+    "driver": "opengl3",
+    "use_2d_pixel_snap": true,
+}
+
+rendering/2d = {
+    "snap_sprites_to_pixels": true,
+}
+
+input/mouse_emulate_touch = false
+input/touch_emulate_mouse = true
+
+filesystem = {
+    "default_script_template": "res://scripts/templates/default.gd.tpl",
+}
+
+languages = {
+    "default_locale": "en",
+}
+
+debug/settings = {
+    "live_edit/enabled": true,
+    "live_edit/port": 6008,
+}
+
+audio/driver = "dummy"
+
+application/run/main_scene = "res://scenes/Main.tscn"
+
+[input]
+
+ui_up = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":38,"pressed":true,"echo":false,"script":null), Object(InputEventKey,"device":-1,"key":119,"pressed":true,"echo":false,"script":null)]
+}
+ui_down = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":40,"pressed":true,"echo":false,"script":null), Object(InputEventKey,"device":-1,"key":115,"pressed":true,"echo":false,"script":null)]
+}
+ui_left = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":37,"pressed":true,"echo":false,"script":null), Object(InputEventKey,"device":-1,"key":97,"pressed":true,"echo":false,"script":null)]
+}
+ui_right = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":39,"pressed":true,"echo":false,"script":null), Object(InputEventKey,"device":-1,"key":100,"pressed":true,"echo":false,"script":null)]
+}
+ui_cancel = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":16777217,"pressed":true,"echo":false,"script":null)]
+}
+ui_accept = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":16777221,"pressed":true,"echo":false,"script":null), Object(InputEventMouseButton,"device":-1,"button_index":1,"pressed":true,"echo":false,"script":null)]
+}
+era_shift = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":101,"pressed":true,"echo":false,"script":null)]
+}
+water_plant = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":119,"pressed":true,"echo":false,"script":null)]
+}
+journal_open = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":106,"pressed":true,"echo":false,"script":null)]
+}
+mouse_left = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventMouseButton,"device":-1,"button_index":1,"pressed":true,"echo":false,"script":null)]
+}
+seed_1 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":49,"pressed":true,"echo":false,"script":null)]
+}
+seed_2 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":50,"pressed":true,"echo":false,"script":null)]
+}
+seed_3 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":51,"pressed":true,"echo":false,"script":null)]
+}
+seed_4 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":52,"pressed":true,"echo":false,"script":null)]
+}
+seed_5 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":53,"pressed":true,"echo":false,"script":null)]
+}
+seed_6 = {
+    "deadzone": 0.5,
+    "events": [Object(InputEventKey,"device":-1,"key":54,"pressed":true,"echo":false,"script":null)]
+}

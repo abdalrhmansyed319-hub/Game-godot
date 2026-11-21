@@ -1,0 +1,88 @@
+[gd_resource type="TileSet" load_steps=9 format=3 uid="0"]
+
+[resource]
+
+name = "Chronoflora TileSet"
+tile_size = Vector2i(32, 32)
+
+texture_0 = ExtResource(0)
+texture_1 = ExtResource(1)
+texture_2 = ExtResource(2)
+texture_3 = ExtResource(3)
+texture_4 = ExtResource(4)
+texture_5 = ExtResource(5)
+texture_6 = ExtResource(6)
+texture_7 = ExtResource(7)
+
+[sub_resource id="0" type="TileSetSourceAtlas"]
+id = 0
+name = "grass_pre"
+texture = ExtResource(0)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="1" type="TileSetSourceAtlas"]
+id = 1
+name = "soil_pre"
+texture = ExtResource(1)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="2" type="TileSetSourceAtlas"]
+id = 2
+name = "water_pre"
+texture = ExtResource(2)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="3" type="TileSetSourceAtlas"]
+id = 3
+name = "stone_pre"
+texture = ExtResource(3)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="4" type="TileSetSourceAtlas"]
+id = 4
+name = "grass_rooted"
+texture = ExtResource(4)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="5" type="TileSetSourceAtlas"]
+id = 5
+name = "soil_rooted"
+texture = ExtResource(5)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="6" type="TileSetSourceAtlas"]
+id = 6
+name = "water_rooted"
+texture = ExtResource(6)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[sub_resource id="7" type="TileSetSourceAtlas"]
+id = 7
+name = "stone_rooted"
+texture = ExtResource(7)
+regions = {
+    "0/0/0": Rect2(0, 0, 32, 32)
+}
+
+[ext_resource path="res://assets/images/environments/grass_pre.png" type="Texture2D" id="0"]
+[ext_resource path="res://assets/images/environments/soil_pre.png" type="Texture2D" id="1"]
+[ext_resource path="res://assets/images/environments/water_pre.png" type="Texture2D" id="2"]
+[ext_resource path="res://assets/images/environments/stone_pre.png" type="Texture2D" id="3"]
+[ext_resource path="res://assets/images/environments/grass_rooted.png" type="Texture2D" id="4"]
+[ext_resource path="res://assets/images/environments/soil_rooted.png" type="Texture2D" id="5"]
+[ext_resource path="res://assets/images/environments/water_rooted.png" type="Texture2D" id="6"]
+[ext_resource path="res://assets/images/environments/stone_rooted.png" type="Texture2D" id="7"]
