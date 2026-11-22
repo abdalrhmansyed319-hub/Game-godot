@@ -9,8 +9,14 @@ extends Node2D
 ##
 ## The revealed core uses the reserved gold. When gold appears, it means real.
 
-var nightmare: NightmareBase = null
-var ai: NightmareAI = null
+## Deliberately untyped.
+##
+## Typing these as `NightmareBase` / `NightmareAI` creates a circular class
+## reference — NightmareBase holds a NightmareVisual, and Godot 4 fails the
+## import with "Could not parse global class". The visual only ever *reads*
+## state, so duck typing costs nothing and keeps the dependency one-way.
+var nightmare: Node2D = null
+var ai: Node = null
 
 var _time: float = 0.0
 var _facing: float = 1.0
@@ -24,10 +30,10 @@ func _ready() -> void:
 	_glow = _make_glow()
 
 
-func bind(target: NightmareBase) -> void:
+func bind(target: Node2D) -> void:
 	nightmare = target
 	if target != null:
-		ai = target.get_node_or_null("AI") as NightmareAI
+		ai = target.get_node_or_null("AI")
 
 
 func _process(delta: float) -> void:

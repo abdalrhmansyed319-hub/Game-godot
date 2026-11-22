@@ -121,7 +121,10 @@ func _physics_process(delta: float) -> void:
 ## Faces the cursor when the pointer is meaningfully away from the Hunter, so
 ## a resting mouse in the middle of the screen does not pin the facing.
 func _aim_from_mouse() -> bool:
-	var camera: Camera2D = get_viewport_camera_2d()
+	var viewport: Viewport = get_viewport()
+	if viewport == null:
+		return false
+	var camera: Camera2D = viewport.get_camera_2d()
 	if camera == null:
 		return false
 	var pointer: Vector2 = get_global_mouse_position()

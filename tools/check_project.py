@@ -614,6 +614,154 @@ def check_static_calls(scripts: List[str], class_map: Dict[str, str]) -> None:
                 )
 
 
+# --------------------- 6d. calls to functions that do not exist in Godot 4
+# Two CI round trips were spent on this exact class of error:
+#   Function "powf()" not found in base self.
+#   Function "get_viewport_camera_2d()" not found in base self.
+# Both halt the import before anything else is checked, and the second one
+# also took down every script that referenced the failing class. Neither is
+# visible without the engine, so the engine had to be the one to find them.
+#
+# This check closes that gap. A bare `name(` call in GDScript resolves either
+# to a global function, a keyword, or a method on `self`. Everything in that
+# space is enumerable: the Godot class reference for the classes this project
+# uses (tools/godot_api.json), the @GlobalScope function list, and this
+# project's own declarations. Anything outside those three sets does not
+# exist, and saying so here is free.
+#
+# Limitations, stated plainly: this only checks *bare* calls. `object.name()`
+# is not checked, because resolving `object`'s type requires the type system.
+# So a typo'd method on an explicit receiver still needs the engine.
+GODOT_GLOBAL_FUNCTIONS = {
+    "abs", "absf", "absi", "acos", "acosh", "angle_difference", "asin",
+    "asinh", "atan", "atan2", "atanh", "bytes_to_var",
+    "bytes_to_var_with_objects", "cart_to_pol", "ceil", "ceilf", "ceili",
+    "clamp", "clampf", "clampi", "cos", "cosh", "cubic_interpolate",
+    "db_to_linear", "deg_to_rad", "ease", "error_string", "exp", "floor",
+    "floorf", "floori", "fmod", "fposmod", "fpow", "fpwrap",
+    "frame_from_msec", "frame_from_secs", "get_current_dir_from_path",
+    "get_error_message", "get_stack", "globalize_path", "hash",
+    "instance_from_id", "inverse_lerp", "is_equal_approx", "is_finite",
+    "is_inf", "is_instance_id_valid", "is_instance_valid", "is_nan",
+    "is_same", "is_zero_approx", "lerp", "lerp_angle", "lerpf",
+    "linear_to_db", "localize_path", "log", "max", "maxf", "maxi", "min",
+    "minf", "mini", "move_toward", "nearest_po2", "pingpong", "polar_to_cart",
+    "posmod", "pow", "powi", "print", "print_rich", "print_verbose",
+    "printerr", "printraw", "prints", "printt", "push_error", "push_warning",
+    "rad_to_deg", "rand_from_seed", "randf", "randfn", "randi",
+    "randi_range", "randomize", "range_lerp", "remap", "rid_allocate_id",
+    "rid_from_int64", "rot_from_euler", "round", "roundf", "roundi", "seed",
+    "sign", "signf", "signi", "sin", "sinh", "snapped", "snappedf",
+    "snappedi", "sqrt", "step_decimals", "stepify", "str", "str_to_var",
+    "tan", "tanh", "type_convert", "type_string", "typeof", "var_to_bytes",
+    "var_to_bytes_with_objects", "var_to_str", "weakref", "wrap", "wrapf",
+    "wrapi",
+}
+GDSCRIPT_STATEMENTS = {
+    "if", "elif", "else", "for", "while", "match", "return", "await", "pass",
+    "break", "continue", "func", "class", "extends", "class_name", "signal",
+    "const", "var", "enum", "static", "super", "self", "not", "and", "or",
+    "in", "is", "as", "void", "true", "false", "null", "assert", "preload",
+    "load", "range", "len",
+}
+# Built-in constructors and conversions that look like calls.
+BUILTIN_CONSTRUCTORS = {
+    "bool", "int", "float", "String", "StringName", "Vector2", "Vector2i",
+    "Vector3", "Vector3i", "Vector4", "Vector4i", "Color", "Rect2", "Rect2i",
+    "Transform2D", "Transform3D", "Basis", "Quaternion", "Plane", "AABB",
+    "Array", "Dictionary", "PackedByteArray", "PackedInt32Array",
+    "PackedFloat32Array", "PackedVector2Array", "PackedStringArray",
+    "PackedColorArray", "NodePath", "RID", "Callable", "Signal", "Projection",
+}
+BARE_CALL_RE = re.compile(r"(?<![.\w@])([a-z_][a-z0-9_]*)\s*\(")
+FUNC_DECL_ANY_RE = re.compile(
+    r"^[ \t]*(?:static[ \t]+)?func[ \t]+([a-z_][a-z0-9_]*)[ \t]*\(", re.MULTILINE
+)
+SIGNAL_DECL_RE = re.compile(r"^[ \t]*signal[ \t]+([a-z_][a-z0-9_]*)", re.MULTILINE)
+VAR_DECL_RE = re.compile(r"^[ \t]*(?:var|const)[ \t]+([a-z_][a-z0-9_]*)", re.MULTILINE)
+STRING_OPEN_RE = re.compile(r'("""|")')
+
+
+def _strip_strings(line: str, in_multiline: bool) -> tuple:
+    """Blank out string contents so `%s (` inside a literal is not a call."""
+    out: List[str] = []
+    index = 0
+    while index < len(line):
+        if in_multiline:
+            end = line.find('"""', index)
+            if end == -1:
+                return "".join(out), True
+            index = end + 3
+            in_multiline = False
+            continue
+        if line[index] == '"':
+            if line.startswith('"""', index):
+                in_multiline = True
+                index += 3
+                continue
+            index += 1
+            while index < len(line):
+                if line[index] == "\\":
+                    index += 2
+                    continue
+                if line[index] == '"':
+                    index += 1
+                    break
+                index += 1
+            out.append('""')
+            continue
+        out.append(line[index])
+        index += 1
+    return "".join(out), in_multiline
+
+
+def _engine_methods() -> Set[str]:
+    """Method names from the Godot class reference, cached in the repo."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "godot_api.json")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as handle:
+        return set(json.load(handle).get("methods", []))
+
+
+def check_unknown_calls(scripts: List[str]) -> None:
+    """Flag bare calls that resolve to nothing in Godot 4 or this project."""
+    engine = _engine_methods()
+    if not engine:
+        warn("tools/godot_api.json is missing; skipping the unknown-call check")
+        return
+
+    declared: Set[str] = set()
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        declared |= set(FUNC_DECL_ANY_RE.findall(text))
+        declared |= set(SIGNAL_DECL_RE.findall(text))
+        # A local Callable variable is legitimately called by name.
+        declared |= set(VAR_DECL_RE.findall(text))
+
+    known = engine | GODOT_GLOBAL_FUNCTIONS | GDSCRIPT_STATEMENTS | BUILTIN_CONSTRUCTORS | declared
+
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            raw_lines = handle.readlines()
+        in_multiline = False
+        for number, raw in enumerate(raw_lines, 1):
+            code, in_multiline = _strip_strings(raw, in_multiline)
+            if in_multiline:
+                continue
+            code = code.split("#")[0]
+            for match in BARE_CALL_RE.finditer(code):
+                name = match.group(1)
+                if name in known:
+                    continue
+                err(
+                    f"{rel(path)}:{number}: '{name}()' is not a Godot 4 "
+                    f"global, an engine method, or a function declared in "
+                    f"this project — it will fail to parse"
+                )
+
+
 # ------------------------------------------------- 7. lexical sanity of .gd
 def check_lexical(scripts: List[str]) -> None:
     for path in scripts:
@@ -748,6 +896,7 @@ def main() -> int:
     check_new_on_packed_scene(scripts)
     check_invented_float_functions(scripts)
     check_static_calls(scripts, class_map)
+    check_unknown_calls(scripts)
     check_lexical(scripts)
     check_data()
     check_scenes(scenes)
