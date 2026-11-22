@@ -716,12 +716,22 @@ def _strip_strings(line: str, in_multiline: bool) -> tuple:
 
 
 def _engine_methods() -> Set[str]:
-    """Method names from the Godot class reference, cached in the repo."""
+    """Every method name in the cached Godot class reference.
+
+    godot_api.json is stored per class (so a future check can resolve a
+    receiver's type), but this only needs the union of all method names: a
+    bare call in GDScript can reach any method on `self`, and `self` may be
+    any class in the project.
+    """
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "godot_api.json")
     if not os.path.exists(path):
         return set()
     with open(path, encoding="utf-8") as handle:
-        return set(json.load(handle).get("methods", []))
+        index = json.load(handle)
+    names: Set[str] = set(index.get("methods", []))
+    for info in index.get("classes", {}).values():
+        names |= set(info.get("methods", []))
+    return names
 
 
 def check_unknown_calls(scripts: List[str]) -> None:
@@ -761,6 +771,24 @@ def check_unknown_calls(scripts: List[str]) -> None:
                     f"this project — it will fail to parse"
                 )
 
+
+# ------------------- 6e. (removed) typed member access — do not reintroduce
+# A check was added here that flagged `x.member` whenever `x`'s declared type
+# appeared to lack that member. It produced 122 errors against a tree that CI
+# had already proven parses, and was removed. Three separate reasons, all of
+# which would have to be solved before anything like it could return:
+#
+#   1. Calling an unknown *method* on a statically typed variable is not a
+#      parse error in Godot 4. `var target: Node` then `target.apply_stagger()`
+#      compiles; it is an UNSAFE_METHOD_ACCESS warning at most. Only genuine
+#      signature and name errors halt the import.
+#   2. Types were collected file-wide, so a parameter `node: Node` in one
+#      function was applied to every `node` in the file.
+#   3. `@export var` members were not collected, so every
+#      `weapon.heavy_damage` on a WeaponFormData looked invalid.
+#
+# What replaced it is narrower and was validated against real CI failures:
+# check_unknown_calls (6d) and check_static_calls (6c).
 
 # ------------------------------------------------- 7. lexical sanity of .gd
 def check_lexical(scripts: List[str]) -> None:

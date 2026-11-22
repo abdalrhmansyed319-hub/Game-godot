@@ -9,14 +9,21 @@ extends Node2D
 ##
 ## The revealed core uses the reserved gold. When gold appears, it means real.
 
-## Deliberately untyped.
+## Deliberately untyped — and the reason is worth recording, because the
+## obvious alternatives both fail to parse.
 ##
-## Typing these as `NightmareBase` / `NightmareAI` creates a circular class
-## reference — NightmareBase holds a NightmareVisual, and Godot 4 fails the
-## import with "Could not parse global class". The visual only ever *reads*
-## state, so duck typing costs nothing and keeps the dependency one-way.
-var nightmare: Node2D = null
-var ai: Node = null
+##   `var nightmare: NightmareBase` — NightmareBase holds a NightmareVisual,
+##     so the two classes reference each other and Godot 4 reports
+##     "Could not parse global class".
+##   `var nightmare: Node2D` — the cycle goes away, but `nightmare.data` is
+##     now a property access on a *statically known* type that has no `data`
+##     member, which Godot rejects at parse time with "Invalid get index".
+##
+## Untyped makes these Variant, so member access resolves at runtime instead.
+## The visual only ever reads state, so nothing is lost, and the dependency
+## stays one-way.
+var nightmare = null
+var ai = null
 
 var _time: float = 0.0
 var _facing: float = 1.0
@@ -30,7 +37,8 @@ func _ready() -> void:
 	_glow = _make_glow()
 
 
-func bind(target: Node2D) -> void:
+## `target` is untyped for the same reason as the fields above.
+func bind(target) -> void:
 	nightmare = target
 	if target != null:
 		ai = target.get_node_or_null("AI")
