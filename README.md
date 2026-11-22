@@ -27,7 +27,7 @@ Bindings live in `project.godot` under `[input]`; the comfort options
 | Action | Key | Mouse | Pad |
 | --- | --- | --- | --- |
 | Move | `A` / `D` (or arrows) | — | Left stick |
-| Jump (variable height, double jump) | `Space` / `Z` | — | A |
+| Jump (variable height) | `Space` / `Z` | — | A |
 | Light attack | `J` | Left button | X |
 | Heavy attack / counter | `K` | Right button | Y |
 | Dash | `Shift` / `L` | Wheel up | B |
@@ -38,6 +38,11 @@ Bindings live in `project.godot` under `[input]`; the comfort options
 | Interact | `E` | — | Start |
 | Journal | `N` / `Tab` | — | Select |
 | Pause / settings | `Esc` | — | Start |
+
+Jump is variable height only: hold to rise higher, tap to cut short. The GDD's
+double jump is a progression unlock, and nothing in M1 calls
+`request_double_jump_unlock()`, so it does not fire yet — treat the single
+jump plus dash as the whole movement kit for this milestone.
 
 Aiming follows the mouse cursor by default, with a 14-pixel deadzone around
 the Hunter so a resting pointer in the middle of the screen does not pin the
