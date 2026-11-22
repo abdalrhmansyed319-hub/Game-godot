@@ -129,6 +129,11 @@ do not machine-gun.
 mouse input only, never GDScript or the scene tree — and captures six labelled
 shots plus a combat-hit frame. Each frame is then scored for content.
 
+CI regenerates the screenshots on every run, so the exact counts below drift by
+a few pixels between runs; they are the measurements from run `45067117784`
+and are quoted as a representative sample, not as a fixed property of the
+files. What does not drift is the verdict.
+
 | Shot | Edges | Content |
 | --- | ---: | --- |
 | `01_main_menu` | 1333 | title screen |
@@ -143,6 +148,12 @@ shots plus a combat-hit frame. Each frame is then scored for content.
 smooth vertical gradient and scores ~275; a genuine frame scores 1333 or more.
 Everything above clears the threshold with room to spare, and no two frames
 are byte-identical (whole-file SHA-256).
+
+**Two consecutive runs cleared it.** The next run, `45067918275`, scored
+1333/1554/1494/1374/1354/1351/1805 — all seven non-void, no duplicate frames.
+Before the fix, three consecutive runs returned 04/05/05b at 434/275/270
+while CI stayed green, so one passing run was never going to be evidence on
+its own.
 
 ### Why shots 04/05/05b were intermittently empty
 
