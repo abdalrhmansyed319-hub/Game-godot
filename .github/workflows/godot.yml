@@ -294,8 +294,11 @@ jobs:
         continue-on-error: true
         run: python3 tools/capture_playtest.py export/web docs/screenshots
 
+      # Runs even if the capture reported a problem: the frames are still real
+      # evidence, and losing them to a console warning would be worse than
+      # committing them alongside the failure.
       - name: Commit screenshots back into the repo
-        if: steps.capture.outcome == 'success'
+        if: always()
         run: |
           set -e
           git config user.name "github-actions[bot]"

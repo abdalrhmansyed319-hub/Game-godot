@@ -16,7 +16,7 @@ Exit 0 = every required shot was captured.
 
 from __future__ import annotations
 
-import base64
+import hashlib
 import http.server
 import os
 import socketserver
@@ -155,9 +155,15 @@ def main() -> int:
                 path = os.path.join(out_dir, label + ".png")
                 page.screenshot(path=path)
                 with open(path, "rb") as fh:
-                    digest = base64.b64encode(fh.read()).decode()[:16]
+                    blob = fh.read()
+                # Hash the whole file. Hashing a prefix is useless here: every
+                # PNG opens with the same 8-byte signature plus a fixed IHDR
+                # header, so the first dozen bytes are identical in every
+                # screenshot and a prefix comparison "detects duplicates" that
+                # are not there.
+                digest = hashlib.sha256(blob).hexdigest()[:16]
                 shots[label] = digest
-                note(f"captured {label} ({os.path.getsize(path)} bytes, b64 head {digest})")
+                note(f"captured {label} ({len(blob)} bytes, sha256 {digest})")
 
             # 1. Main menu. PlayButton has an initial focus owner, so Enter
             #    activates it without a mouse.
