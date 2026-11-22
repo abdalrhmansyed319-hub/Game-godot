@@ -5,16 +5,20 @@ extends Node2D
 ## An attack needs to be *seen*, not just heard. This draws a tapered arc that
 ## sweeps and fades over a few frames. It is the single most important piece of
 ## combat readability: telegraphs and swings use the same visual language.
+##
+## The arc is oriented by a direction *vector* rather than a sign, so a swing
+## can point up, down or sideways. Facing alone cannot express an aerial slam.
 
 const ARC_RADIUS: float = 46.0
 const ARC_WIDTH: float = 13.0
+const ARC_STEPS: int = 12
 
 var color: Color = Palette.BLADE_TRAIL
 var progress: float = 0.0
 var duration: float = 0.14
-var facing: float = 1.0
-var sweep_start: float = -0.9
-var sweep_end: float = 0.9
+## Base angle of the swing, in radians, in world space.
+var base_angle: float = 0.0
+var sweep: float = 1.7
 var radius_scale: float = 1.0
 
 
@@ -29,21 +33,30 @@ func _process(delta: float) -> void:
 		queue_free()
 
 
+## `direction` is the way the blade is travelling; the arc is centred on it.
 static func spawn(
 	host: Node,
 	at: Vector2,
-	direction: float,
+	direction: Vector2,
 	tint: Color,
-	duration: float = 0.14,
-	radius_scale: float = 1.0
+	radius: float = ARC_RADIUS,
+	sweep_angle: float = 1.7
 ) -> SlashArc:
 	var arc := SlashArc.new()
-	arc.global_position = at
-	arc.facing = direction
+	var aim: Vector2 = direction if direction.length_squared() > 0.0001 else Vector2.RIGHT
+	arc.base_angle = aim.angle()
+	arc.sweep = sweep_angle
 	arc.color = tint
-	arc.duration = maxf(0.05, duration)
-	arc.radius_scale = radius_scale
+	arc.radius_scale = maxf(0.2, radius / ARC_RADIUS)
+	# Duration scales with size so a big arc does not blink out of existence.
+	arc.duration = 0.11 + arc.radius_scale * 0.03
 	host.add_child(arc)
+	# Set after entering the tree: `global_position` only resolves against a
+	# parent once the node is actually in the scene.
+	if host is Node2D:
+		arc.global_position = at
+	else:
+		arc.position = at
 	return arc
 
 
@@ -55,26 +68,25 @@ func _draw() -> void:
 	if alpha <= 0.01:
 		return
 
-	var start_angle: float = sweep_start + (sweep_end - sweep_start) * 0.0
-	var current_angle: float = sweep_start + (sweep_end - sweep_start) * eased
+	var start_angle: float = base_angle - sweep * 0.5
+	var end_angle: float = start_angle + sweep * eased
 	var radius: float = ARC_RADIUS * radius_scale
 
 	var points := PackedVector2Array()
-	var steps: int = 12
-	for i: int in range(steps + 1):
-		var f: float = float(i) / float(steps)
-		var angle: float = lerpf(start_angle, current_angle, f)
+	# Outer edge.
+	for i: int in range(ARC_STEPS + 1):
+		var f: float = float(i) / float(ARC_STEPS)
+		var angle: float = lerpf(start_angle, end_angle, f)
 		# Taper: widest in the middle of the sweep.
 		var taper: float = sin(f * PI) * 0.75 + 0.35
-		var r: float = radius * taper
-		points.append(Vector2(cos(angle), sin(angle)) * r * Vector2(facing, 1.0))
-	# Close the shape back along the inner edge so the arc has thickness.
-	for i: int in range(steps, -1, -1):
-		var f: float = float(i) / float(steps)
-		var angle: float = lerpf(start_angle, current_angle, f)
+		points.append(Vector2(cos(angle), sin(angle)) * radius * taper)
+	# Back along the inner edge so the arc has thickness.
+	for i: int in range(ARC_STEPS, -1, -1):
+		var f: float = float(i) / float(ARC_STEPS)
+		var angle: float = lerpf(start_angle, end_angle, f)
 		var taper: float = sin(f * PI) * 0.75 + 0.35
-		var r: float = maxf(3.0, radius * taper - ARC_WIDTH * taper)
-		points.append(Vector2(cos(angle), sin(angle)) * r * Vector2(facing, 1.0))
+		var inner: float = maxf(3.0, (radius - ARC_WIDTH) * taper)
+		points.append(Vector2(cos(angle), sin(angle)) * inner)
 
 	if points.size() < 3:
 		return

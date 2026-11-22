@@ -483,6 +483,137 @@ def check_invented_float_functions(scripts: List[str]) -> None:
                     )
 
 
+# --------------------------- 6c. static-func calls on project class_name types
+# A parse error of the form
+#   Invalid argument for "spawn()" function: argument 3 should be "float"
+#   but is "Vector2"
+# halts the whole import, and every script depending on that class then fails
+# with "Could not resolve class". One bad call site takes the project down.
+#
+# Scope note: this deliberately only checks `ClassName.func(...)` where
+# ClassName is a project `class_name` and `func` is one of its *static*
+# functions. That is unambiguous. A bare `func()` call cannot be resolved
+# without full scope analysis -- the same name may exist on several classes --
+# so checking those produces false positives and is not done here.
+STATIC_DECL_RE = re.compile(
+    r"^[ \t]*static[ \t]+func[ \t]+([a-z_]\w*)[ \t]*\(([^)]*)\)",
+    re.MULTILINE,
+)
+LITERAL_SHAPES = (
+    (re.compile(r"^Vector2i?\s*\("), {"Vector2", "Vector2i"}),
+    (re.compile(r"^Vector3i?\s*\("), {"Vector3", "Vector3i"}),
+    (re.compile(r"^Color\s*\("), {"Color"}),
+    (re.compile(r"^Rect2i?\s*\("), {"Rect2", "Rect2i"}),
+    (re.compile(r"^NodePath\s*\("), {"NodePath"}),
+    (re.compile(r"^-?\d+$"), {"int", "float"}),
+    (re.compile(r"^-?\d*\.\d+$"), {"float"}),
+    (re.compile(r'^&?"'), {"String", "StringName"}),
+    (re.compile(r"^(true|false)$"), {"bool"}),
+)
+
+
+def _split_params(raw: str) -> List[tuple]:
+    """[(name, declared_type_or_None, has_default)] for a parameter list."""
+    params: List[tuple] = []
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        has_default = "=" in chunk
+        head = chunk.split("=")[0].strip()
+        name = head.split(":")[0].strip()
+        declared = head.split(":")[1].strip() if ":" in head else None
+        params.append((name, declared, has_default))
+    return params
+
+
+def _classify(argument: str):
+    """The declared types an argument literal could satisfy, or None."""
+    argument = argument.strip()
+    for pattern, types in LITERAL_SHAPES:
+        if pattern.match(argument):
+            return types
+    return None
+
+
+def _split_arguments(raw: str) -> List[str]:
+    """Split on top-level commas only, so Vector2(a, b) stays one argument."""
+    out: List[str] = []
+    depth = 0
+    current = ""
+    for char in raw:
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        if char == "," and depth == 0:
+            out.append(current)
+            current = ""
+        else:
+            current += char
+    if current.strip():
+        out.append(current)
+    return [a.strip() for a in out if a.strip()]
+
+
+def _balanced(text: str, open_index: int) -> int:
+    """Index just past the paren matching the one at open_index."""
+    depth = 0
+    for index in range(open_index, len(text)):
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    return len(text)
+
+
+def check_static_calls(scripts: List[str], class_map: Dict[str, str]) -> None:
+    """Validate `ClassName.static_func(...)` against the declaration."""
+    statics: Dict[str, Dict[str, List[tuple]]] = {}
+    for class_name, path in class_map.items():
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        found = {
+            m.group(1): _split_params(m.group(2))
+            for m in STATIC_DECL_RE.finditer(text)
+        }
+        if found:
+            statics[class_name] = found
+
+    call_re = re.compile(r"(?<![.\w])([A-Z]\w*)\.([a-z_]\w*)[ \t]*\(")
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        for match in call_re.finditer(text):
+            owner, name = match.group(1), match.group(2)
+            if owner not in statics or name not in statics[owner]:
+                continue
+            params = statics[owner][name]
+            end = _balanced(text, match.end() - 1)
+            arguments = _split_arguments(text[match.end():end - 1])
+            required = sum(1 for _n, _t, default in params if not default)
+            line = text.count("\n", 0, match.start()) + 1
+            if len(arguments) < required or len(arguments) > len(params):
+                err(
+                    f"{rel(path)}:{line}: {owner}.{name}() takes "
+                    f"{required}-{len(params)} argument(s), called with "
+                    f"{len(arguments)}"
+                )
+                continue
+            for position, argument in enumerate(arguments):
+                declared = params[position][1]
+                given = _classify(argument)
+                if declared is None or given is None or declared in given:
+                    continue
+                err(
+                    f"{rel(path)}:{line}: {owner}.{name}() argument "
+                    f"{position + 1} is declared '{declared}' but is called "
+                    f"with '{argument[:40]}'"
+                )
+
+
 # ------------------------------------------------- 7. lexical sanity of .gd
 def check_lexical(scripts: List[str]) -> None:
     for path in scripts:
@@ -616,6 +747,7 @@ def main() -> int:
     check_unresolvable_constants(scripts, class_map, project)
     check_new_on_packed_scene(scripts)
     check_invented_float_functions(scripts)
+    check_static_calls(scripts, class_map)
     check_lexical(scripts)
     check_data()
     check_scenes(scenes)
