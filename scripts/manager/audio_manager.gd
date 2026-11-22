@@ -111,7 +111,8 @@ func _synthesise(spec: Array) -> AudioStreamWAV:
 		var t: float = float(i) / float(_sample_rate)
 		var progress: float = float(i) / float(frames)
 		# Percussive envelope: fast attack, exponential-ish decay.
-		var envelope: float = powf(1.0 - progress, 2.4)
+		# Godot 4 has pow(), not powf() — there is no float-suffixed variant.
+		var envelope: float = pow(1.0 - progress, 2.4)
 		var current: float = frequency * (1.0 - pitch_drop * progress)
 		phase += TAU * current / float(_sample_rate)
 		var sample: float = 0.0

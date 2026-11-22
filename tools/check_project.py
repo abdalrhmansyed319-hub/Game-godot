@@ -446,6 +446,43 @@ def check_new_on_packed_scene(scripts: List[str]) -> None:
                 )
 
 
+# --------------------------------- 6b. invented float-suffixed math functions
+# Godot 4 provides an `f` suffix for exactly these: absf, ceilf, clampf,
+# floorf, lerpf, maxf, minf, roundf, signf, snappedf, wrapf, randf, randfn.
+# It does NOT provide one for the transcendental functions, so `powf()` is a
+# parse error ("Function 'powf()' not found in base self") — the plain `pow()`
+# already returns a float. This check exists because that error cost a full CI
+# round trip to discover.
+FLOAT_SUFFIX_STEMS = {
+    "pow", "sqrt", "exp", "log", "sin", "cos", "tan", "asin", "acos", "atan",
+    "atan2", "sinh", "cosh", "tanh", "fmod", "posmod", "fposmod", "ease",
+    "remap", "pingpong", "inverse_lerp", "range_lerp", "lerp_angle",
+    "cubic_interpolate", "angle_difference", "is_nan", "is_inf", "is_finite",
+    "deg_to_rad", "rad_to_deg", "linear_to_db", "db_to_linear",
+    "step_decimals", "nearest_po2",
+}
+INVENTED_CALL_RE = re.compile(r"(?<![.\w])([a-z_][a-z0-9_]*f)\s*\(")
+
+
+def check_invented_float_functions(scripts: List[str]) -> None:
+    """Flag `stemf()` where Godot only defines `stem()`."""
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+        for number, line in enumerate(lines, 1):
+            code = line.split("#")[0]
+            for match in INVENTED_CALL_RE.finditer(code):
+                name = match.group(1)
+                stem = name[:-1]
+                if stem in FLOAT_SUFFIX_STEMS:
+                    err(
+                        f"{rel(path)}:{number}: '{name}()' does not exist in "
+                        f"Godot 4 — use '{stem}()', which already returns a "
+                        f"float (only absf/ceilf/clampf/floorf/lerpf/maxf/"
+                        f"minf/roundf/signf/snappedf/wrapf/randf have an f form)"
+                    )
+
+
 # ------------------------------------------------- 7. lexical sanity of .gd
 def check_lexical(scripts: List[str]) -> None:
     for path in scripts:
@@ -578,6 +615,7 @@ def main() -> int:
     check_builtin_shadowing(scripts)
     check_unresolvable_constants(scripts, class_map, project)
     check_new_on_packed_scene(scripts)
+    check_invented_float_functions(scripts)
     check_lexical(scripts)
     check_data()
     check_scenes(scenes)
