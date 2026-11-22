@@ -217,22 +217,44 @@ def main() -> int:
             shot("04_enemy_encounter")
 
             # 5. Attack. The mimic investigates for 1.4 s, then pursues at
-            #    move_speed * 0.55 = 72.6 px/s until it is within its own
-            #    58 px attack range, so waiting puts it right in front.
-            #    Player has 100 HP against 12 damage, so the wait is safe.
-            #
-            #    Aim first, then swing: _aim_from_mouse() reads the cursor in
-            #    _physics_process, so moving the mouse and clicking in the same
-            #    instant can attack before the facing flips. The 14 px deadzone
-            #    means the cursor must sit clearly right of centre.
-            time.sleep(4.5)
+            #    move_speed * 0.55 = 72.6 px/s until it sits at its own 58 px
+            #    attack range. Worst case it starts 301 px out, so closing
+            #    takes 1.4 + 243/72.6 = 4.75 s -- 4.5 s left it ~78 px away,
+            #    past the 54 px hitbox, and the swing hit nothing.
+            #    Player has 100 HP against 12 damage, so waiting is safe.
+            time.sleep(5.5)
+            # Step in so the 52-wide hitbox (reaching 54 px right of the
+            # origin) overlaps the 26-wide enemy hurtbox. Player and nightmare
+            # masks are both 1 (world only), so they pass through each other
+            # rather than colliding -- overshooting would walk straight past.
+            driver.key("right", True)
+            time.sleep(0.10)
+            driver.key("right", False)
+            time.sleep(0.3)
+
+            # Aim first, then swing: _aim_from_mouse() reads the cursor in
+            # _physics_process, so moving the mouse and clicking in the same
+            # instant can attack before the facing flips. The 14 px deadzone
+            # means the cursor must sit clearly right of centre.
             driver.move_to(900, 430)
             time.sleep(0.25)
-            driver.click(900, 430)     # LMB = attack_light
-            time.sleep(0.12)           # light_startup is 0.07..0.16 s
+
+            # Swing 1 -- catch the procedural SlashArc. attack_started fires at
+            # the START of startup, and the arc lives 0.11 + (32/46)*0.03 =
+            # 0.131 s total, so the screenshot has to be requested well inside
+            # that. page.screenshot() itself takes time, hence the short sleep.
+            driver.click(900, 430, pause=0.02)
+            time.sleep(0.04)
             shot("05_combat_effects")
-            driver.tap("heavy")
-            time.sleep(0.10)
+
+            # Swing 2 -- catch the hit. Recovery ends by ~0.50 s even for the
+            # slowest blade; the hurt flash starts on contact and decays at
+            # 5.0/s from 1.0 (0.2 s of life), and damage_system spawns a
+            # second SlashArc on the target at the same moment.
+            time.sleep(0.60)
+            driver.click(900, 430, pause=0.02)
+            time.sleep(0.20)
+            shot("05b_combat_hit")
             driver.tap("dash")
             time.sleep(0.6)
 
