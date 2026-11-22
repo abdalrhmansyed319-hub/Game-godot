@@ -176,6 +176,12 @@ def main() -> int:
             driver.tap("enter")
             time.sleep(6)
             shot("02_protagonist")
+            # Let the screenshot's forced render finish before any timed input.
+            # page.screenshot() competes with the game loop for the main thread
+            # under software rendering, and if the game is still catching up
+            # when the walk starts, wall-clock sleeps under-count physics frames
+            # and the Hunter ends up short of the gap.
+            time.sleep(1.0)
 
             # 3. Move right to show the environment scrolling, then shoot wide.
             #    Ground west spans x -700..700 and the steps (x 430..610) float
@@ -183,25 +189,31 @@ def main() -> int:
             driver.hold("right", 2.0)
             time.sleep(0.5)
             shot("03_environment")
+            # Same settle, and this one is critical: the crossing below is timed
+            # to the frame, and it starts immediately after this screenshot.
+            time.sleep(1.2)
 
             # 4. Cross the 260 px gap. Every number here comes from
             #    tools/simulate_traversal.py, not from guesswork:
             #
             #      after step 3      player rests at x ~577 (2.0 s walk from
             #                        spawn 120, then friction stops it)
-            #      take-off window   x 642..700 -> walk 0.35..0.59 s from rest,
-            #                        centre 0.47 s -> x ~672 (+/-120 ms slack)
+            #      take-off window   x 642..723 -> walk 0.35..0.69 s from rest,
+            #                        centre 0.52 s (was 0.47, which sat only
+            #                        120 ms from the early edge -- the side
+            #                        that fails when the game hitches)
             #      apex              0.439 s; releasing earlier hits
             #                        release_jump() -> velocity * 0.45 jump cut
-            #      dash frame 39     0.65 s after take-off -> full 318 px
+            #      dash window       0.45..0.80 s after take-off, centre 0.62 s
+            #                        -> full 318 px anywhere inside it
             #      airtime           1.117 s, landing x ~990 on ground mid
             driver.key("right", True)
-            time.sleep(0.47)
+            time.sleep(0.52)
             driver.key("jump", True)
-            time.sleep(0.65)          # past apex, so the cut cannot fire
+            time.sleep(0.62)          # past apex, so the cut cannot fire
             driver.tap("dash")        # dash duration is timer-driven, a tap is enough
             driver.key("jump", False)
-            time.sleep(0.50)          # 1.21 s > 1.117 s airtime: landed
+            time.sleep(0.55)          # 1.17 s > 1.117 s airtime: landed
             # Ground mid runs 960..1860; the second nightmare (borrowed_face,
             # a mimic) spawns at 1720 and patrols +/-140 -> 1580..1860.
             #
