@@ -9,19 +9,18 @@ extends Node2D
 ##
 ## The revealed core uses the reserved gold. When gold appears, it means real.
 
-## Deliberately untyped — and the reason is worth recording, because the
-## obvious alternatives both fail to parse.
+## Untyped so the dependency stays one-way.
 ##
-##   `var nightmare: NightmareBase` — NightmareBase holds a NightmareVisual,
-##     so the two classes reference each other and Godot 4 reports
-##     "Could not parse global class".
-##   `var nightmare: Node2D` — the cycle goes away, but `nightmare.data` is
-##     now a property access on a *statically known* type that has no `data`
-##     member, which Godot rejects at parse time with "Invalid get index".
+## NightmareBase owns a NightmareVisual, so typing this back-reference as
+## `NightmareBase` would make the two classes reference each other. The
+## visual only ever reads state, so nothing is lost by leaving it as Variant
+## and letting member access resolve at runtime.
 ##
-## Untyped makes these Variant, so member access resolves at runtime instead.
-## The visual only ever reads state, so nothing is lost, and the dependency
-## stays one-way.
+## For the record, this was *not* the cause of the import failure that this
+## file caused. That was a duplicated `flash()` declaration further down,
+## which Godot reports as "Could not parse global class NightmareVisual" —
+## naming the victim, not the cause. tools/check_project.py now checks for
+## duplicate top-level declarations directly.
 var nightmare = null
 var ai = null
 
@@ -85,11 +84,6 @@ func _draw() -> void:
 
 	_draw_telegraph()
 	_draw_core(revealed)
-
-
-## Called by NightmareBase when damage lands.
-func flash() -> void:
-	_hurt_flash = 1.0
 
 
 ## Soft mass behind the creature so it separates from the background.

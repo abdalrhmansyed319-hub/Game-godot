@@ -790,6 +790,62 @@ def check_unknown_calls(scripts: List[str]) -> None:
 # What replaced it is narrower and was validated against real CI failures:
 # check_unknown_calls (6d) and check_static_calls (6c).
 
+# ------------------------------------- 6f. duplicate top-level declarations
+# A script that declares the same top-level `func` twice does not parse:
+#
+#   SCRIPT ERROR: Parse Error: Function "flash()" has already been declared
+#     in this scope.
+#
+# This is what actually broke the import for four CI runs. The reported error
+# was "Could not parse global class NightmareVisual", which names the victim
+# and not the cause, and every script referencing it then failed behind it
+# with "Could not resolve class". Two plausible-looking causes were fixed
+# first -- a suspected circular class reference, then a suspected invalid
+# property access -- and neither was it.
+#
+# Only *top-level* declarations are checked. Two functions each declaring a
+# local `var points` is normal and legal; the scope is what matters, and a
+# flat name count cannot see it.
+TOP_LEVEL_DECL_RE = re.compile(
+    r"^(?:(static)[ \t]+)?(func|signal|var|const|enum)[ \t]+([A-Za-z_]\w*)",
+    re.MULTILINE,
+)
+
+
+def check_duplicate_declarations(scripts: List[str]) -> None:
+    """Flag a top-level name declared twice in one script."""
+    for path in scripts:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+        seen: Dict[str, int] = {}
+        in_multiline = False
+        for number, raw in enumerate(lines, 1):
+            stripped, in_multiline = _strip_strings(raw, in_multiline)
+            if in_multiline:
+                continue
+            if stripped.startswith("#") or stripped.startswith("\t") or stripped.startswith(" "):
+                continue
+            match = re.match(
+                r"(?:(static)[ \t]+)?(func|signal|var|const|enum)[ \t]+([A-Za-z_]\w*)",
+                stripped,
+            )
+            if not match:
+                continue
+            kind, name = match.group(2), match.group(3)
+            # `static func x` and `func x` collide; `signal x` and `var x` do
+            # not share a namespace in GDScript, so key on kind for those.
+            key = name if kind == "func" else f"{kind}:{name}"
+            if key in seen:
+                err(
+                    f"{rel(path)}:{number}: {kind} '{name}' is already "
+                    f"declared at line {seen[key]} — GDScript rejects the "
+                    f"whole script with \"already been declared in this "
+                    f"scope\", and every script that references it fails too"
+                )
+            else:
+                seen[key] = number
+
+
 # ------------------------------------------------- 7. lexical sanity of .gd
 def check_lexical(scripts: List[str]) -> None:
     for path in scripts:
@@ -924,6 +980,7 @@ def main() -> int:
     check_new_on_packed_scene(scripts)
     check_invented_float_functions(scripts)
     check_static_calls(scripts, class_map)
+    check_duplicate_declarations(scripts)
     check_unknown_calls(scripts)
     check_lexical(scripts)
     check_data()
