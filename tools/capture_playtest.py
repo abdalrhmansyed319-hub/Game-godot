@@ -97,6 +97,9 @@ class InputDriver:
         time.sleep(pause)
         self.mouse(x, y, button, False)
 
+    def move_to(self, x: float, y: float) -> None:
+        self.cdp.send("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y})
+
     def focus_canvas(self) -> None:
         """Godot only reads input once the canvas has DOM focus."""
         self.page.evaluate("() => document.querySelector('canvas').focus()")
@@ -199,22 +202,34 @@ def main() -> int:
             driver.tap("dash")        # dash duration is timer-driven, a tap is enough
             driver.key("jump", False)
             time.sleep(0.50)          # 1.21 s > 1.117 s airtime: landed
-            # Ground mid runs 960..1860; the second nightmare spawns at 1720.
-            # Landing is x~991, so 2.9 s at run_speed stops at x~1679 with the
-            # nightmare ~41 px AHEAD. Walking 3.2 s instead overshoots to 1748
-            # and puts the enemy behind the Hunter, who would then swing at
-            # empty air when aimed right.
-            time.sleep(2.9)
+            # Ground mid runs 960..1860; the second nightmare (borrowed_face,
+            # a mimic) spawns at 1720 and patrols +/-140 -> 1580..1860.
+            #
+            # Landing is x~1012, so 2.38 s at run_speed stops at x~1559 --
+            # LEFT of the whole patrol range. That guarantees the enemy is
+            # always ahead (21..301 px right) and inside its 340 px detect
+            # radius, so it closes in rather than ending up behind the Hunter.
+            # Stopping at 2.9 s (x~1679) sat inside the patrol band instead,
+            # which is why the first good run showed a swing at empty air.
+            time.sleep(2.38)
             driver.key("right", False)
             time.sleep(0.5)
             shot("04_enemy_encounter")
 
-            # 5. Attack. Mouse-down on the canvas is the light attack, so this
-            #    exercises the real aim path including the deadzone. Aim ahead
-            #    of the Hunter at roughly the height a standing enemy occupies.
-            driver.focus_canvas()
-            driver.click(820, 430)
-            time.sleep(0.12)
+            # 5. Attack. The mimic investigates for 1.4 s, then pursues at
+            #    move_speed * 0.55 = 72.6 px/s until it is within its own
+            #    58 px attack range, so waiting puts it right in front.
+            #    Player has 100 HP against 12 damage, so the wait is safe.
+            #
+            #    Aim first, then swing: _aim_from_mouse() reads the cursor in
+            #    _physics_process, so moving the mouse and clicking in the same
+            #    instant can attack before the facing flips. The 14 px deadzone
+            #    means the cursor must sit clearly right of centre.
+            time.sleep(4.5)
+            driver.move_to(900, 430)
+            time.sleep(0.25)
+            driver.click(900, 430)     # LMB = attack_light
+            time.sleep(0.12)           # light_startup is 0.07..0.16 s
             shot("05_combat_effects")
             driver.tap("heavy")
             time.sleep(0.10)
