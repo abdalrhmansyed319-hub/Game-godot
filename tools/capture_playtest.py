@@ -175,23 +175,45 @@ def main() -> int:
             shot("02_protagonist")
 
             # 3. Move right to show the environment scrolling, then shoot wide.
-            driver.hold("right", 1.4)
-            time.sleep(1.0)
+            #    Ground west spans x -700..700 and the steps (x 430..610) float
+            #    80 px overhead, so this walk passes cleanly beneath them.
+            driver.hold("right", 2.0)
+            time.sleep(0.5)
             shot("03_environment")
 
-            # 4. Keep moving east toward the nightmare that spawns at x=1720.
-            #    This is the longest walk; the shots along the way are real.
-            for _ in range(6):
-                driver.hold("right", 1.2)
-                time.sleep(0.25)
-            driver.tap("jump")
-            time.sleep(0.8)
+            # 4. Cross the 260 px gap. Every number here comes from
+            #    tools/simulate_traversal.py, not from guesswork:
+            #
+            #      after step 3      player rests at x ~577 (2.0 s walk from
+            #                        spawn 120, then friction stops it)
+            #      take-off window   x 642..700 -> walk 0.35..0.59 s from rest,
+            #                        centre 0.47 s -> x ~672 (+/-120 ms slack)
+            #      apex              0.439 s; releasing earlier hits
+            #                        release_jump() -> velocity * 0.45 jump cut
+            #      dash frame 39     0.65 s after take-off -> full 318 px
+            #      airtime           1.117 s, landing x ~990 on ground mid
+            driver.key("right", True)
+            time.sleep(0.47)
+            driver.key("jump", True)
+            time.sleep(0.65)          # past apex, so the cut cannot fire
+            driver.tap("dash")        # dash duration is timer-driven, a tap is enough
+            driver.key("jump", False)
+            time.sleep(0.50)          # 1.21 s > 1.117 s airtime: landed
+            # Ground mid runs 960..1860; the second nightmare spawns at 1720.
+            # Landing is x~991, so 2.9 s at run_speed stops at x~1679 with the
+            # nightmare ~41 px AHEAD. Walking 3.2 s instead overshoots to 1748
+            # and puts the enemy behind the Hunter, who would then swing at
+            # empty air when aimed right.
+            time.sleep(2.9)
+            driver.key("right", False)
+            time.sleep(0.5)
             shot("04_enemy_encounter")
 
             # 5. Attack. Mouse-down on the canvas is the light attack, so this
-            #    exercises the real aim path including the deadzone.
+            #    exercises the real aim path including the deadzone. Aim ahead
+            #    of the Hunter at roughly the height a standing enemy occupies.
             driver.focus_canvas()
-            driver.click(860, 360)
+            driver.click(820, 430)
             time.sleep(0.12)
             shot("05_combat_effects")
             driver.tap("heavy")
@@ -221,6 +243,36 @@ def main() -> int:
     missing = [name for name in REQUIRED if name not in shots]
     if missing:
         failures.append("missing shots: " + ", ".join(missing))
+
+    # A shot of the player falling through the void is a smooth vertical
+    # gradient with almost no edges. Any frame with content in it -- platforms,
+    # HUD, a menu -- has many more. Measured against the run that produced the
+    # bad frames: void shots score ~275 edges, genuine playtest frames score
+    # 1333 or more. The threshold sits well clear of both.
+    try:
+        from PIL import Image
+
+        for name, path in sorted(
+            (k, os.path.join(out_dir, k + ".png")) for k in shots
+        ):
+            if not os.path.exists(path):
+                continue
+            gray = Image.open(path).convert("L").resize((160, 90))
+            pixels = list(gray.tobytes())
+            edges = sum(
+                1
+                for y in range(1, 90)
+                for x in range(1, 160)
+                if abs(pixels[y * 160 + x] - pixels[y * 160 + x - 1]) > 6
+                or abs(pixels[y * 160 + x] - pixels[(y - 1) * 160 + x]) > 6
+            )
+            if edges < 600:
+                failures.append(
+                    f"{name}: looks like empty space ({edges} edges); "
+                    "likely a void frame, not a playtest shot"
+                )
+    except ImportError:
+        note("Pillow unavailable — skipping the void-frame check")
 
     # Two screenshots of different scenes must not be byte-identical, or the
     # "capture" is really a stuck frame.
