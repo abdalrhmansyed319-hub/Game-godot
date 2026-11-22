@@ -53,6 +53,134 @@ def note(message: str) -> None:
     print("::notice::" + message)
 
 
+# --- Waiting on the game's clock, not the machine's -------------------------
+#
+# Godot steps a fixed 60 Hz physics clock but caps each rendered frame at
+# Engine.max_physics_steps_per_frame (8 steps = 133 ms of simulation).
+# Under software rendering a frame routinely costs more than that, so wall
+# clock and simulation clock drift apart: time.sleep(0.52) can hand the game
+# only 0.35 s of movement, take-off then happens inside the 260 px gap, and
+# shot 04 comes back as empty space.
+#
+# The probe accumulates requestAnimationFrame deltas clamped to the same
+# 8/60 s budget the engine allows. While the renderer keeps up, every delta
+# sits under the cap and this tracks time.sleep() to within half a frame;
+# while it stalls, the wait stretches instead of the crossing silently
+# shortening. Clamped deltas never sum past wall time, so the stretch is
+# the only direction game_sleep can deviate in when the engine keeps up.
+
+PROBE_JS = """() => {
+  if (window.__nhProbe) { return; }
+  const CAP = 8 / 60;
+  const p = {
+    acc: 0, frames: 0, last: null, lastC: 0, ema: 0,
+    minDelta: Infinity, maxDelta: 0, sumDelta: 0,
+    winFrames: 0, winSum: 0, winAcc: 0, winMin: Infinity, winMax: 0,
+  };
+  p.resetWindow = () => {
+    p.winFrames = 0; p.winSum = 0; p.winAcc = 0;
+    p.winMin = Infinity; p.winMax = 0;
+  };
+  p.snapshot = () => ({
+    acc: p.acc,
+    frames: p.frames,
+    lastC: p.lastC,
+    ema: p.ema,
+    minDelta: p.minDelta === Infinity ? 0 : p.minDelta,
+    maxDelta: p.maxDelta,
+    avgDelta: p.frames ? p.sumDelta / p.frames : 0,
+    winFrames: p.winFrames,
+    winAcc: p.winAcc,
+    winMin: p.winMin === Infinity ? 0 : p.winMin,
+    winMax: p.winMax,
+    winAvg: p.winFrames ? p.winSum / p.winFrames : 0,
+  });
+  window.__nhProbe = p;
+  const tick = (now) => {
+    if (p.last !== null) {
+      const d = (now - p.last) / 1000;
+      const c = Math.min(d, CAP);
+      p.acc += c;
+      p.lastC = c;
+      p.ema = p.ema === 0 ? c : p.ema + 0.25 * (c - p.ema);
+      p.frames += 1;
+      p.sumDelta += d;
+      p.winAcc += c;
+      p.winFrames += 1;
+      p.winSum += d;
+      if (d < p.minDelta) p.minDelta = d;
+      if (d > p.maxDelta) p.maxDelta = d;
+      if (d < p.winMin) p.winMin = d;
+      if (d > p.winMax) p.winMax = d;
+    }
+    p.last = now;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}"""
+
+
+# The target is pulled back by half a frame on purpose. The probe only
+# observes acc at frame boundaries and the key we send after the resolve is
+# only applied on the *next* frame, so a naive "wait until acc >= start + s"
+# would land one whole frame late every time and the chain of waits would
+# drift the crossing off the ledge. Half a frame of headroom turns that
+# one-sided bias into a symmetric +/- d/2, which is the tolerance the
+# timings below were designed against. It is capped at half the requested
+# duration so a stale lastC -- left over from a screenshot stall -- can
+# never pull the target to or below `start` and make a short wait resolve
+# on the very next frame.
+SLEEP_JS = """(seconds) => new Promise((resolve) => {
+  const p = window.__nhProbe;
+  const start = p.acc;
+  // Smoothed frame length, not the raw last one: a single stalled frame
+  // right after a screenshot would otherwise over-size the pull-back and
+  // make the wait that follows it come up short.
+  const pull = Math.min((p.ema || p.lastC || 0) / 2, seconds / 2);
+  const target = start + seconds - pull;
+  const t0 = performance.now();
+  let done = false;
+  let timer = 0;
+  const finish = () => {
+    if (done) { return; }
+    done = true;
+    clearTimeout(timer);
+    resolve({ game: p.acc - start, wall: (performance.now() - t0) / 1000 });
+  };
+  // Bounded so a page whose rAF loop dies cannot hang CI forever. The
+  // factor is generous on purpose: at the 8/60 s physics cap a slow
+  // renderer needs up to 7.5x wall time to deliver the same game time.
+  timer = setTimeout(finish, (seconds * 12 + 15) * 1000);
+  const check = () => {
+    if (done) { return; }
+    if (p.acc >= target) { finish(); return; }
+    requestAnimationFrame(check);
+  };
+  requestAnimationFrame(check);
+})"""
+
+
+# (label, requested game seconds, wall seconds actually spent)
+_SLEEP_LOG: list[tuple[str, float, float]] = []
+
+
+def game_sleep(page, seconds: float, label: str = "") -> None:
+    """Wait for `seconds` of simulation time instead of wall-clock time."""
+    if seconds <= 0:
+        return
+    try:
+        result = page.evaluate(SLEEP_JS, seconds)
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        note(f"{label or 'game_sleep'}: evaluate failed ({exc}); using wall clock")
+        time.sleep(seconds)
+        _SLEEP_LOG.append((label or "?", seconds, seconds))
+        return
+    wall = float(result.get("wall", seconds))
+    _SLEEP_LOG.append((label or "?", seconds, wall))
+    if wall > seconds * 1.5 + 0.25:
+        note(f"{label or 'wait'}: {seconds:.2f}s of game time needed {wall:.2f}s wall")
+
+
 class InputDriver:
     """Sends raw key/mouse events through CDP, not through Playwright helpers."""
 
@@ -71,11 +199,19 @@ class InputDriver:
 
     def hold(self, name: str, seconds: float) -> None:
         self.key(name, True)
-        time.sleep(seconds)
+        # Game time, not wall time: the 2.0 s walk below is what puts the
+        # Hunter at x~577, and a renderer stall during it would otherwise
+        # start the crossing from the wrong place.
+        game_sleep(self.page, seconds, f"hold {name} {seconds:g}s")
         self.key(name, False)
 
     def tap(self, name: str) -> None:
-        self.hold(name, 0.06)
+        # Deliberately *not* game_sleep: a tap only has to outlive one input
+        # poll, and holding the key while the renderer stalls would desync
+        # the key-down/key-up pair across unrelated frames.
+        self.key(name, True)
+        time.sleep(0.06)
+        self.key(name, False)
 
     def mouse(self, x: float, y: float, button: str = "left", down: bool = True) -> None:
         buttons = 1 if down else 0
@@ -151,6 +287,12 @@ def main() -> int:
             note("canvas present; waiting for the engine to boot")
             time.sleep(20)
 
+            # Install the game clock before any timed input. Every wait below
+            # is measured against the simulation's own frame cadence rather
+            # than the wall clock, so a slow renderer stretches the wait
+            # instead of silently shortening it.
+            page.evaluate(PROBE_JS)
+
             driver = InputDriver(page)
             driver.focus_canvas()
 
@@ -174,24 +316,31 @@ def main() -> int:
 
             # 2. Enter the region.
             driver.tap("enter")
-            time.sleep(6)
+            # Game time: if the region load stalls the main thread, a
+            # wall-clock 6 s can be entirely consumed by the load itself and
+            # shot02 catches a half-built scene.
+            game_sleep(page, 6, "region load")
             shot("02_protagonist")
             # Let the screenshot's forced render finish before any timed input.
             # page.screenshot() competes with the game loop for the main thread
             # under software rendering, and if the game is still catching up
             # when the walk starts, wall-clock sleeps under-count physics frames
             # and the Hunter ends up short of the gap.
-            time.sleep(1.0)
+            game_sleep(page, 1.0, "settle after shot02")
 
             # 3. Move right to show the environment scrolling, then shoot wide.
             #    Ground west spans x -700..700 and the steps (x 430..610) float
             #    80 px overhead, so this walk passes cleanly beneath them.
             driver.hold("right", 2.0)
-            time.sleep(0.5)
+            # Friction needs 0.096 s of *game* time to stop from run_speed;
+            # a wall-clock settle can expire before one slow frame elapses.
+            game_sleep(page, 0.5, "friction stop")
             shot("03_environment")
             # Same settle, and this one is critical: the crossing below is timed
             # to the frame, and it starts immediately after this screenshot.
-            time.sleep(1.2)
+            # Game time, so a renderer stall here extends the settle instead
+            # of letting the crossing start while the engine is still behind.
+            game_sleep(page, 1.2, "settle after shot03")
 
             # 4. Cross the 260 px gap. Every number here comes from
             #    tools/simulate_traversal.py, not from guesswork:
@@ -208,12 +357,12 @@ def main() -> int:
             #                        -> full 318 px anywhere inside it
             #      airtime           1.117 s, landing x ~990 on ground mid
             driver.key("right", True)
-            time.sleep(0.52)
+            game_sleep(page, 0.52, "walk to take-off")
             driver.key("jump", True)
-            time.sleep(0.62)          # past apex, so the cut cannot fire
+            game_sleep(page, 0.62, "jump rise")   # past apex, so the cut cannot fire
             driver.tap("dash")        # dash duration is timer-driven, a tap is enough
             driver.key("jump", False)
-            time.sleep(0.55)          # 1.17 s > 1.117 s airtime: landed
+            game_sleep(page, 0.55, "airtime")     # 1.17 s > 1.117 s airtime: landed
             # Ground mid runs 960..1860; the second nightmare (borrowed_face,
             # a mimic) spawns at 1720 and patrols +/-140 -> 1580..1860.
             #
@@ -223,9 +372,20 @@ def main() -> int:
             # radius, so it closes in rather than ending up behind the Hunter.
             # Stopping at 2.9 s (x~1679) sat inside the patrol band instead,
             # which is why the first good run showed a swing at empty air.
-            time.sleep(2.38)
+            game_sleep(page, 2.38, "walk to enemy")
             driver.key("right", False)
-            time.sleep(0.5)
+            game_sleep(page, 0.5, "friction stop before shot04")
+            # One line of evidence: if the renderer is the culprit, this is
+            # where it shows up. r well below 1 means wall-clock sleeps were
+            # under-feeding the simulation during the crossing above.
+            _snap = page.evaluate("() => window.__nhProbe.snapshot()")
+            if _snap and _snap.get("frames"):
+                note(
+                    f"game clock: {_snap['frames']} frames, "
+                    f"avg {_snap['avgDelta'] * 1000:.0f} ms, "
+                    f"max {_snap['maxDelta'] * 1000:.0f} ms "
+                    f"(r = {_snap['acc'] / max(_snap['avgDelta'] * _snap['frames'], 1e-9):.2f})"
+                )
             shot("04_enemy_encounter")
 
             # 5. Attack. The mimic investigates for 1.4 s, then pursues at
@@ -234,45 +394,46 @@ def main() -> int:
             #    takes 1.4 + 243/72.6 = 4.75 s -- 4.5 s left it ~78 px away,
             #    past the 54 px hitbox, and the swing hit nothing.
             #    Player has 100 HP against 12 damage, so waiting is safe.
-            time.sleep(5.5)
+            game_sleep(page, 5.5, "enemy approach")
             # Step in so the 52-wide hitbox (reaching 54 px right of the
             # origin) overlaps the 26-wide enemy hurtbox. Player and nightmare
             # masks are both 1 (world only), so they pass through each other
             # rather than colliding -- overshooting would walk straight past.
             driver.key("right", True)
-            time.sleep(0.10)
+            game_sleep(page, 0.10, "step in")
             driver.key("right", False)
-            time.sleep(0.3)
+            game_sleep(page, 0.3, "settle after step-in")
 
             # Aim first, then swing: _aim_from_mouse() reads the cursor in
             # _physics_process, so moving the mouse and clicking in the same
             # instant can attack before the facing flips. The 14 px deadzone
             # means the cursor must sit clearly right of centre.
             driver.move_to(900, 430)
-            time.sleep(0.25)
+            game_sleep(page, 0.25, "aim settle")
 
             # Swing 1 -- catch the procedural SlashArc. attack_started fires at
             # the START of startup, and the arc lives 0.11 + (32/46)*0.03 =
             # 0.131 s total, so the screenshot has to be requested well inside
-            # that. page.screenshot() itself takes time, hence the short sleep.
+            # that. That budget is in *simulation* seconds, so the waits here
+            # are game time too.
             driver.click(900, 430, pause=0.02)
-            time.sleep(0.04)
+            game_sleep(page, 0.04, "arc window")
             shot("05_combat_effects")
 
             # Swing 2 -- catch the hit. Recovery ends by ~0.50 s even for the
             # slowest blade; the hurt flash starts on contact and decays at
             # 5.0/s from 1.0 (0.2 s of life), and damage_system spawns a
             # second SlashArc on the target at the same moment.
-            time.sleep(0.60)
+            game_sleep(page, 0.60, "recovery")
             driver.click(900, 430, pause=0.02)
-            time.sleep(0.20)
+            game_sleep(page, 0.20, "flash window")
             shot("05b_combat_hit")
             driver.tap("dash")
-            time.sleep(0.6)
+            game_sleep(page, 0.6, "post-dash")
 
             # 6. Pause.
             driver.tap("pause")
-            time.sleep(1.5)
+            game_sleep(page, 1.5, "pause settle")
             shot("06_pause_menu")
 
             browser.close()
