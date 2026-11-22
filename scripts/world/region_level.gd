@@ -57,16 +57,35 @@ func _on_nightmare_resolved(nightmare_id: StringName, resolution: int) -> void:
 
 # --- Geometry ---------------------------------------------------------------
 func _build_geometry() -> void:
-	# Ground, with a gap the player must jump or dash across.
+	# Ground, with a gap the player must dash across.
+	#
+	# The gap is 260 px. A running jump alone covers ~188 px, and the best
+	# dash-jump (dashing at the apex, which is what turns the 0.16 s of
+	# zero-gravity into travel) covers ~318 px, so 260 px demands a dash but
+	# leaves ~58 px of margin. It was 370 px, which was ~52 px beyond even a
+	# perfect dash and trapped the player on the starting platform.
 	_add_platform(Vector2(0, 0), Vector2(1400, 40))
-	_add_platform(Vector2(1520, 0), Vector2(900, 40))
+	_add_platform(Vector2(1410, 0), Vector2(900, 40))
 	_add_platform(Vector2(2500, 0), Vector2(1600, 40))
 	# Stepped climb toward the bell.
-	_add_platform(Vector2(520, -110), Vector2(180, 24))
-	_add_platform(Vector2(780, -210), Vector2(180, 24))
-	_add_platform(Vector2(1040, -320), Vector2(220, 24))
-	# A wall to wall-jump.
-	_add_platform(Vector2(1900, -140), Vector2(40, 280))
+	#
+	# Each step is an 80 px rise. That is deliberate, not arbitrary: a single
+	# jump peaks at jump_velocity^2 / (2 * gravity) = 430^2 / (2 * 980) = 94.3
+	# px, and the double jump is never unlocked at runtime
+	# (request_double_jump_unlock has no callers). The previous values were
+	# 102 / 100 / 110 px, which no jump can reach, so the whole climb was dead
+	# geometry. 80 px leaves ~14 px of headroom.
+	# See tools/simulate_traversal.py, which re-checks this arithmetic.
+	_add_platform(Vector2(520, -88), Vector2(180, 24))
+	_add_platform(Vector2(780, -168), Vector2(180, 24))
+	_add_platform(Vector2(1040, -248), Vector2(220, 24))
+	# A wall the player vaults over.
+	#
+	# This was a 280 px wall intended for a wall jump, but a single wall cannot
+	# be wall-jump climbed (there is no opposing surface to push against), so it
+	# sealed the level at x=1880. It is now a 80 px vault: jump onto the top,
+	# walk off the far side.
+	_add_platform(Vector2(1900, 0), Vector2(40, 200))
 	# Boss arena floor, raised and enclosed.
 	_add_platform(Vector2(3450, -60), Vector2(700, 40))
 	_add_platform(Vector2(3120, -220), Vector2(40, 320))
@@ -128,7 +147,7 @@ func _spawn_content() -> void:
 	_spawn_nightmare(region_nightmares[2], Vector2(3450, -120))
 	_spawn_quiet_room(Vector2(120, -30))
 	_spawn_memory(
-		Vector2(1080, -370),
+		Vector2(1080, -300),
 		&"choir_verse",
 		&"hollow_choir",
 		"The last verse",

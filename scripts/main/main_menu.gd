@@ -9,6 +9,10 @@ func _ready() -> void:
 	$VBox/QuitButton.pressed.connect(func() -> void: get_tree().quit())
 	$VBox/Title.text = "NIGHTMARE HUNTER"
 	$VBox/Subtitle.text = "Every nightmare is a creature to fight, a mystery to investigate, and a story to understand."
+	# The jam requires the game to be fully playable with keyboard and mouse.
+	# Without an initial focus owner the menu can only be used with the mouse,
+	# so the first button takes focus and Tab walks the rest.
+	$VBox/PlayButton.grab_focus()
 
 
 func _on_play() -> void:

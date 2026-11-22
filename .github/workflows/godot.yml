@@ -22,6 +22,28 @@ jobs:
       - name: Static project checks
         run: python3 tools/check_project.py
 
+      # The level's platform spacing is checked against the player's actual jump
+      # and dash numbers. This is arithmetic, not the engine, but it is the only
+      # thing standing between "the level looks fine" and "the player is
+      # trapped on the starting platform", which is exactly what shipped before.
+      - name: Level traversal reachability
+        run: |
+          set -o pipefail
+          python3 tools/simulate_traversal.py 2>&1 | tee traversal.log || true
+          python3 - <<'PY'
+          import re
+          lines = open("traversal.log", encoding="utf-8", errors="replace").read().splitlines()
+          bad = [l.strip() for l in lines if "UNREACHABLE" in l or "NO SURFACE" in l or "ABOVE REACH" in l]
+          for line in bad[:20]:
+              print("::error::" + line[:400])
+          raise SystemExit(1 if bad else 0)
+          PY
+
+      # Prove the check above can actually fail, by re-injecting the geometry it
+      # was written to catch. A check that only ever passes is not evidence.
+      - name: Validate the traversal check catches the original bug
+        run: python3 tools/validate_traversal_check.py
+
       - name: Download Godot (matches project feature tag 4.7)
         run: |
           set -e
