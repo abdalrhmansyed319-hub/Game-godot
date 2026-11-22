@@ -1,8 +1,9 @@
 # M1 — Combat & Movement Feel: implementation and test report
 
 **Branch:** `arena/c01b8ea4-game-godot`
-**Verified commit:** `c472df6`
-**CI:** run `45012352644` — `verify` success (10 steps), `web` success (17 steps)
+**Verified commit:** `184faf8` (screenshots committed by CI at `840a8f2`)
+**CI:** run `45067117784` (#25) — `verify` ✓ · `web` ✓ · `playtest` ✓
+**Earlier milestone runs:** `45012352644` on `c472df6` — `verify` success (10 steps), `web` success (17 steps)
 
 ---
 
@@ -105,12 +106,65 @@ do not machine-gun.
 ## Not done
 
 - **No human playtest.** The single largest risk in this milestone is
-  unaddressed by anything in this report.
+  unaddressed by anything in this report. The scripted capture proves the
+  build renders; it says nothing about feel.
 - No dialogue, NPC or ending content.
-- The Bell boss is untouched, as instructed.
+- The Bell boss is untouched, as instructed — so `nightmare3` at
+  `(3450,-120)` and the `shrine_plate` behind it are unreachable in M1.
 - `NightmareData.mass` is a tuning hook; no nightmare JSON sets it, so all
   three use the default `1.0`.
-- The Jam GDD and the web build are still not uploaded to Drive.
+- No fall-death exists: `respawn()` requires `died`, which is never emitted.
+  A player who misses the gap keeps falling. Not fixed — it needs a
+  bug-fix decision, not a silent patch.
+- GitHub Pages cannot be enabled (`403 Resource not accessible by
+  integration`), so the `web-build` CI artifact is the deliverable.
+- The M1 capture screenshots and this report are uploaded to Google Drive;
+  the GDD and project source zip were already there.
+
+---
+
+## Scripted playtest: seven screenshots, all non-void
+
+`tools/capture_playtest.py` drives the exported build over CDP — keyboard and
+mouse input only, never GDScript or the scene tree — and captures six labelled
+shots plus a combat-hit frame. Each frame is then scored for content.
+
+| Shot | Edges | Content |
+| --- | ---: | --- |
+| `01_main_menu` | 1333 | title screen |
+| `02_protagonist` | 1552 | the Hunter |
+| `03_environment` | 1489 | the Hollow Village |
+| `04_enemy_encounter` | 1369 | player + nightmare at the wall |
+| `05_combat_effects` | 1407 | swing arc |
+| `05b_combat_hit` | 1357 | hit confirmed, enemy launched |
+| `06_pause_menu` | 1807 | pause / comfort settings |
+
+**Void threshold: 600.** A shot of the player falling through the world is a
+smooth vertical gradient and scores ~275; a genuine frame scores 1333 or more.
+Everything above clears the threshold with room to spare, and no two frames
+are byte-identical (whole-file SHA-256).
+
+### Why shots 04/05/05b were intermittently empty
+
+They were not a gameplay defect. Every timed step in the driver used
+`time.sleep()`, but Godot steps a fixed 60 Hz physics clock while capping each
+rendered frame at 8 physics steps — 133 ms of simulation. Under software
+rendering a frame routinely costs more than that, so wall clock and simulation
+clock drift apart: a `time.sleep(0.52)` walk could hand the game only 0.35 s of
+movement, take-off then happened *inside* the 260 px gap, and the shot came
+back as empty space.
+
+The driver now accumulates `requestAnimationFrame` deltas clamped to the same
+8/60 s budget the engine allows, and waits on that accumulator instead of the
+wall clock. While the renderer keeps up it tracks `time.sleep()` to within half
+a frame; while it stalls the wait stretches rather than the crossing silently
+shortening. Clamped deltas never sum past wall time, so stretching is the only
+direction it can deviate in. `tools/test_game_clock.py` exercises the extracted
+JavaScript under a hand-built rAF shim — 15/15 assertions pass, including a
+700 ms stall mid-wait still delivering a full 0.5 s of game time.
+
+**This is still not a human playtest.** It proves the build renders the right
+scene at the right moment, not that any of it feels good.
 
 ---
 
@@ -122,9 +176,10 @@ with a number attached, so the answers are comparable between sessions.
 1. **Does the jump feel owned?** Hold and tap jump. The tap should reach
    roughly half the height. If both feel the same, `jump_cut_multiplier`
    (0.45) is wrong.
-2. **Can you land where you aim?** Dash across the gap at x≈1400. If you
-   overshoot or fall short consistently, `dash_speed` (620) or `air_control`
-   (0.82) is wrong.
+2. **Can you land where you aim?** Dash across the gap between x=700 and
+   x=960 (the ground ends at x=700 and resumes at x=960). If you overshoot or
+   fall short consistently, `dash_speed` (620) or `air_control` (0.82) is
+   wrong.
 3. **Do hits feel connected?** Light-attack the Hollow Choir ten times. Count
    how many feel like the blade touched something. Under 8 out of 10 means
    hit-stop is too short or the shake is too small.
