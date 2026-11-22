@@ -50,6 +50,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
+## Returns to the title screen. The run state is deliberately *not* reset here:
+## discoveries persist across attempts (GDD 12), and `reset_run_state` is the
+## region's job when a new hunt actually begins.
+func return_to_title() -> void:
+	get_tree().paused = false
+	FeedbackManager.cancel_all()
+	get_tree().change_scene_to_file("res://scenes/main/main_menu.tscn")
+
+
 func reset_run_state() -> void:
 	max_health = MAX_HEALTH_BASE
 	health = max_health

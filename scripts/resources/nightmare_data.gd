@@ -36,6 +36,10 @@ enum ResolutionKind { DESTROY, CAPTURE, RELEASE, RECONCILE }
 @export var stagger_threshold: float = 26.0
 @export var dodge_chance: float = 0.0
 @export var can_teleport: bool = false
+## Knockback resistance. 1.0 is a normal nightmare; heavy creatures use 2.0 or
+## more so they take the hit without being punted across the arena. See
+## docs/PHYSICS_NOTES.md — this is a deliberate physics addition (M1).
+@export var mass: float = 1.0
 
 @export_category("Revealed structure (GDD 6)")
 ## True vulnerability. Not necessarily anatomical: may be a forgotten name,
@@ -96,6 +100,7 @@ static func from_dict(dict: Dictionary) -> NightmareData:
 	data.stagger_threshold = float(dict.get("stagger_threshold", data.stagger_threshold))
 	data.dodge_chance = float(dict.get("dodge_chance", data.dodge_chance))
 	data.can_teleport = bool(dict.get("can_teleport", data.can_teleport))
+	data.mass = maxf(0.2, float(dict.get("mass", data.mass)))
 
 	data.revealed_trait = String(dict.get("revealed_trait", ""))
 	data.revealed_trait_kind = String(dict.get("revealed_trait_kind", data.revealed_trait_kind))

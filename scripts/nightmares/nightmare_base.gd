@@ -32,9 +32,11 @@ var is_staggered: bool = false
 var stagger_timer: float = 0.0
 ## Per-encounter phase/resolution logic. RefCounted, owned by this node.
 var _resolution_manager: BossEncounterManager = null
-var _visual_root: Node2D = null
-var _body_rect: ColorRect = null
-var _core_rect: ColorRect = null
+var _visual: NightmareVisual = null
+## Squash/stretch applied on impact and eased back out. Cheap, and it is the
+## single biggest contributor to hits feeling connected.
+var _impact_squash: Vector2 = Vector2.ONE
+var _knockback_velocity: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -51,7 +53,7 @@ func _ready() -> void:
 	hitbox.kind = Hitbox.Kind.ENEMY
 	hitbox.counterable = true
 	hitbox.deactivate()
-	_build_placeholder_visual()
+	_build_visual()
 	GameManager.discover_clue(StringName("sighting"), data.id)
 	if data.journal_entry_on_discovery != "":
 		JournalManager.discover(
@@ -75,6 +77,47 @@ func _process(delta: float) -> void:
 		stagger_timer -= delta
 		if stagger_timer <= 0.0:
 			is_staggered = false
+	# Easing the squash back to neutral rather than snapping: a hard reset is
+	# what makes hit reactions look mechanical.
+	_impact_squash = _impact_squash.lerp(Vector2.ONE, clampf(delta * 11.0, 0.0, 1.0))
+	if _visual != null:
+		_visual.scale = _impact_squash
+
+
+## Folds knockback into the body velocity.
+##
+## NightmareAI drives deliberate movement and calls `move_and_slide()`; this
+## only *adds* an impulse and lets it decay, so a shove reads as a shove
+## instead of teleporting the creature. Decay is framerate-independent.
+func _physics_process(delta: float) -> void:
+	if is_dead or _knockback_velocity.length_squared() < 1.0:
+		return
+	velocity += _knockback_velocity
+	_knockback_velocity = _knockback_velocity.move_toward(Vector2.ZERO, delta * 1400.0)
+
+
+# --- Hit reaction -----------------------------------------------------------
+## Called by DamageSystem. `strength` is normalised around 1.0 for a heavy hit.
+func hit_react(strength: float, _point: Vector2) -> void:
+	if is_dead:
+		return
+	# Anchored nightmares refuse to move — that is the entire point of the Anchor.
+	var squash: float = clampf(strength * 0.22, 0.0, 0.34)
+	_impact_squash = Vector2(1.0 + squash, 1.0 - squash)
+	if _visual != null:
+		_visual.flash()
+
+
+func apply_knockback(direction: Vector2, force: float) -> void:
+	if is_dead or is_anchored:
+		return
+	# Mass matters: a Warden should not fly across the room off a light hit.
+	_knockback_velocity += Vector2(direction.x, -0.55) * (force / data.mass)
+
+
+func revealed_spark_color() -> Color:
+	# Revealed nightmares throw gold sparks. Reserved colour, earned.
+	return data.revealed_color if is_revealed else Palette.BLOODLESS_IMPACT
 
 
 # --- Damage -----------------------------------------------------------------
@@ -135,8 +178,8 @@ func expose_weak_point() -> void:
 		return
 	weak_point_exposed = true
 	set_revealed(true, 4.0)
-	if _core_rect != null:
-		_core_rect.visible = true
+	Fx.reveal_ring(self, global_position + Vector2(0, -22.0))
+	AudioManager.play_named(&"lantern")
 
 
 ## Mimics lose their borrowed shape (Echo of Borrowed Faces).
@@ -212,28 +255,18 @@ func normalised_health() -> float:
 	return clampf(health / data.max_health, 0.0, 1.0) if data != null else 0.0
 
 
-# --- Placeholder visuals ----------------------------------------------------
-func _build_placeholder_visual() -> void:
-	_visual_root = Node2D.new()
-	_visual_root.name = "Visual"
-	add_child(_visual_root)
-
-	_body_rect = ColorRect.new()
-	_body_rect.color = data.body_color
-	_body_rect.size = Vector2(26, 34)
-	_body_rect.position = Vector2(-13, -30)
-	_visual_root.add_child(_body_rect)
-
-	# The revealed core: hidden until the Lantern or a Revelation exposes it.
-	_core_rect = ColorRect.new()
-	_core_rect.color = data.revealed_color
-	_core_rect.size = Vector2(8, 8)
-	_core_rect.position = Vector2(-4, -22)
-	_core_rect.visible = false
-	_visual_root.add_child(_core_rect)
+# --- Visuals ----------------------------------------------------------------
+## The creature is drawn in code by NightmareVisual: a distinct silhouette per
+## category, the telegraph as part of the body, and the revealed core in the
+## reserved gold. It replaces the coloured rectangles from the prototype.
+func _build_visual() -> void:
+	_visual = NightmareVisual.new()
+	_visual.name = "Visual"
+	add_child(_visual)
+	_visual.bind(self)
 
 
+## Kept as a named hook so callers do not need to know about the visual node.
 func _tint_for_state() -> void:
-	if _body_rect == null:
-		return
-	_body_rect.color = data.revealed_color if is_revealed else data.body_color
+	if _visual != null:
+		_visual.queue_redraw()

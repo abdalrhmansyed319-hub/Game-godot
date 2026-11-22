@@ -296,6 +296,18 @@ GODOT_BUILTIN_CONSTANTS = {
     "StyleBoxFlat", "Theme", "Shortcut", "InputEvent", "InputEventAction",
     "PhysicsRayQueryParameters2D", "PhysicsRayQueryParameters3D", "Curve",
     "CurveTexture", "Noise", "FastNoiseLite", "RandomNumberGenerator",
+    # TextServer is registered in ClassDB (servers/register_server_types.cpp,
+    # GDREGISTER_ABSTRACT_CLASS(TextServer)) even though it is not an Engine
+    # singleton, so `TextServer.AUTOWRAP_WORD_SMART` resolves in GDScript.
+    # It is the documented way to set Label.autowrap_mode in Godot 4.
+    "TextServer", "TextServerManager", "AudioServer", "RenderingServer",
+    "PhysicsServer2D", "DisplayServer", "ConfigFile", "GPUParticles2D",
+    "ParticleProcessMaterial", "PanelContainer", "VBoxContainer", "HBoxContainer",
+    "HSlider", "VSlider", "Control", "CanvasItem", "Node", "Object", "Resource",
+    "Timer", "Tween", "SceneTree", "PackedScene", "Label", "Button", "ColorRect",
+    "Parallax2D", "StaticBody2D", "Area2D", "CollisionShape2D", "RectangleShape2D",
+    "CapsuleShape2D", "CharacterBody2D", "Camera2D", "Sprite2D", "Polygon2D",
+    "Line2D", "PointLight2D", "CanvasModulate", "WorldEnvironment", "AnimationPlayer",
 }
 
 # Godot 4 global class names that a local enum/class/const must not shadow.
@@ -398,44 +410,39 @@ def check_unresolvable_constants(
 
 
 
-# ------------------------------------------- 6. .new() on a Node-derived class
-NODE_BASES = {
-    "Node", "Node2D", "Node3D", "Control", "CharacterBody2D", "RigidBody2D",
-    "StaticBody2D", "Area2D", "Area3D", "CanvasLayer", "CanvasItem", "Sprite2D",
-    "CollisionShape2D", "Camera2D", "Marker2D", "TileMap", "TileMapLayer",
-    "Parallax2D", "ParallaxBackground", "AudioStreamPlayer", "Label", "Button",
-    "ProgressBar", "ColorRect", "ItemList", "RichTextLabel", "VBoxContainer",
-    "HBoxContainer", "CenterContainer", "HSplitContainer",
-}
-# RefCounted and Resource are safe with .new(); anything scene-tree bound is not.
+# ------------------------------------------- 6. .new() called on a PackedScene
+SCENE_CONST_RE = re.compile(
+    r"^\s*(?:const|var)\s+(\w+)\s*[:=][^\n]*?"
+    r"(?:preload|load)\(\s*[\"']([^\"']+\.tscn)[\"']\s*\)",
+    re.MULTILINE,
+)
+NEW_CALL_RE = re.compile(r"\b(\w+)\.new\(")
 
 
-def base_of(script_path: str) -> str | None:
-    with open(script_path, encoding="utf-8") as handle:
-        for line in handle:
-            match = re.match(r"^extends\s+(\w+)", line)
-            if match:
-                return match.group(1)
-    return None
+def check_new_on_packed_scene(scripts: List[str]) -> None:
+    """Flag `.new()` called on a PackedScene constant.
 
+    `PackedScene` has no `new()`; the call fails at runtime with
+    "Invalid call. Nonexistent function 'new' in base 'PackedScene'".
 
-def check_new_on_node(scripts: List[str], class_map: Dict[str, str]) -> None:
-    bases: Dict[str, str] = {}
-    for name, path in class_map.items():
-        bases[name] = base_of(path) or ""
-    new_re = re.compile(r"\b(\w+)\.new\(")
+    Note on scope: an earlier version of this check forbade `.new()` on any
+    Node-derived `class_name`. That was wrong and has been removed — Godot
+    fully supports `MyNode2D.new()`, and procedural construction is how the
+    visuals in this project are built. The only genuine error in this family
+    is calling `.new()` on a scene, which is what is asserted here.
+    """
     for path in scripts:
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
-        for match in new_re.finditer(text):
+        scene_names = {m.group(1): m.group(2) for m in SCENE_CONST_RE.finditer(text)}
+        if not scene_names:
+            continue
+        for match in NEW_CALL_RE.finditer(text):
             cls = match.group(1)
-            base = bases.get(cls)
-            if base is None:
-                continue
-            if base in NODE_BASES:
+            if cls in scene_names:
                 err(
-                    f"{rel(path)}: {cls}.new() but {cls} extends {base} — "
-                    f"Node-derived classes cannot be instantiated with .new()"
+                    f"{rel(path)}: {cls}.new() but {cls} is a PackedScene "
+                    f"({scene_names[cls]}) — use {cls}.instantiate()"
                 )
 
 
@@ -570,7 +577,7 @@ def main() -> int:
     class_map = check_class_names(scripts)
     check_builtin_shadowing(scripts)
     check_unresolvable_constants(scripts, class_map, project)
-    check_new_on_node(scripts, class_map)
+    check_new_on_packed_scene(scripts)
     check_lexical(scripts)
     check_data()
     check_scenes(scenes)

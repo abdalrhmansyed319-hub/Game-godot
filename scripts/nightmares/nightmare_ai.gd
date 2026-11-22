@@ -35,7 +35,6 @@ var target: Node2D = null
 var facing: float = 1.0
 var is_telegraphing: bool = false
 var _dodge_timer: float = 0.0
-var _telegraph_visual: ColorRect = null
 
 
 func _ready() -> void:
@@ -288,18 +287,12 @@ func _drain_resources() -> void:
 	AudioManager.play_named(&"player_hurt")
 
 
-## Readable warning before the hit lands.
+## The telegraph is now drawn by NightmareVisual as part of the creature
+## itself, so the warning and the threat are one object and both flip with
+## `facing`. These stay as hooks so nothing upstream has to change.
 func _build_telegraph_visual() -> void:
-	_telegraph_visual = ColorRect.new()
-	_telegraph_visual.color = nightmare.data.telegraph_color
-	_telegraph_visual.size = Vector2(nightmare.data.attack_range, 4)
-	_telegraph_visual.position = Vector2(0, -6)
-	_telegraph_visual.visible = false
-	nightmare.add_child(_telegraph_visual)
+	pass
 
 
-func _show_telegraph(visible: bool) -> void:
-	if _telegraph_visual == null:
-		return
-	_telegraph_visual.visible = visible
-	_telegraph_visual.position.x = 0.0 if facing > 0.0 else -nightmare.data.attack_range
+func _show_telegraph(_visible: bool) -> void:
+	pass

@@ -50,6 +50,9 @@ var jumps_used: int = 0
 var coyote_timer: float = 0.0
 var jump_buffer_timer: float = 0.0
 var was_on_floor: bool = false
+## Mirrors the body's floor state. PlayerController pushes it each physics
+## frame so visuals and abilities agree with what the physics actually did.
+var is_airborne: bool = false
 var is_dashing: bool = false
 var dash_timer: float = 0.0
 var dash_cooldown_timer: float = 0.0
@@ -136,6 +139,19 @@ func set_gravity_flip(active: bool) -> void:
 	gravity_flip = active
 
 
+## PlayerController pushes the authoritative facing in here every physics
+## frame. Movement input sets it too, but mouse aiming overrides it, and that
+## override has to survive the next input read rather than fight it.
+func set_facing(value: float) -> void:
+	if is_zero_approx(value):
+		return
+	facing = value
+
+
+func set_airborne(value: bool) -> void:
+	is_airborne = value
+
+
 # --- Internals --------------------------------------------------------------
 func _gravity_sign() -> float:
 	return -1.0 if gravity_flip else 1.0
@@ -195,7 +211,9 @@ func _do_jump() -> void:
 	jumps_used = 1
 	coyote_timer = 0.0
 	jump_buffer_timer = 0.0
-	AudioManager.play_named(&"dash")
+	# A jump taken from coyote time still counts as the first jump: the player
+	# pressed in time, so the game should never punish them for it.
+	AudioManager.play_named(&"jump")
 	jumped.emit()
 
 
@@ -203,6 +221,7 @@ func _do_double_jump() -> void:
 	body.velocity.y = jump_velocity * 0.9 * _gravity_sign()
 	jumps_used += 1
 	jump_buffer_timer = 0.0
+	AudioManager.play_named(&"double_jump")
 	double_jumped.emit()
 
 
@@ -213,6 +232,8 @@ func _do_wall_jump() -> void:
 	jumps_used = 1
 	jump_buffer_timer = 0.0
 	is_wall_sliding = false
+	AudioManager.play_named(&"wall_jump")
+	Fx.dust(body, body.global_position + Vector2(-direction * 8.0, -12.0), 6)
 	wall_jumped.emit(direction)
 
 

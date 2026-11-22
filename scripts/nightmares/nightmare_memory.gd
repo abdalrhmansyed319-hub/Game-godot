@@ -18,27 +18,31 @@ signal discovered(memory_id: StringName)
 
 var is_revealed: bool = false
 var is_collected: bool = false
-var _visual: ColorRect = null
+## The page is drawn by PropVisual, which whoever spawns this adds as a child.
+var _visual: PropVisual = null
 
 
 func _ready() -> void:
 	add_to_group("interactive")
 	body_entered.connect(_on_body_entered)
-	_build_visual()
-
-
-func _build_visual() -> void:
-	_visual = ColorRect.new()
-	_visual.color = Color(0.95, 0.9, 0.7, 0.0 if requires_lantern else 0.8)
-	_visual.size = Vector2(10, 14)
-	_visual.position = Vector2(-5, -18)
-	add_child(_visual)
+	for child: Node in get_children():
+		if child is PropVisual:
+			_visual = child
+			break
+	# Lantern-gated memories stay unseen until something reveals them.
+	if _visual != null:
+		_visual.visible = not requires_lantern
+		_visual.revealed = not requires_lantern
 
 
 func set_revealed(value: bool, _duration: float) -> void:
 	is_revealed = value
 	if _visual != null:
-		_visual.color.a = 0.9 if value else (0.0 if requires_lantern else 0.8)
+		_visual.visible = value or not requires_lantern
+		_visual.set_revealed(value or not requires_lantern)
+	if value:
+		Fx.reveal_ring(self, global_position + Vector2(0, -24.0))
+		AudioManager.play_named(&"nightmare_revealed")
 
 
 func can_interact() -> bool:
@@ -70,5 +74,7 @@ func collect() -> void:
 		memory_text
 	)
 	discovered.emit(memory_id)
+	Fx.burst(self, global_position + Vector2(0, -24.0), Palette.TRUTH, 12)
 	if _visual != null:
-		_visual.color.a = 0.25
+		# The page stays where it fell. You already have the words.
+		_visual.modulate = Color(1, 1, 1, 0.3)

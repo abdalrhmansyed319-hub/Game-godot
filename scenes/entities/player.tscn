@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/player_movement.gd" id="2_movement"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/combat/resonance_system.gd" id="9_resonance"]
 [ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="10_hitbox"]
 [ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="11_hurtbox"]
+[ext_resource type="Script" path="res://scripts/feedback/shake_camera.gd" id="12_camera"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
 radius = 11.0
@@ -79,3 +80,4 @@ position = Vector2(0, -60)
 zoom = Vector2(1.1, 1.1)
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
+script = ExtResource("12_camera")

@@ -2,9 +2,9 @@ class_name PlayerController
 extends CharacterBody2D
 ## PlayerController — the Hunter (GDD 3, 4, 5).
 ##
-## Owns input routing and the visual placeholder. All feel lives in
-## PlayerMovement, all combat in PlayerCombat, all instruments in their own
-## nodes, so each system can be tuned independently.
+## Owns input routing and the visual. All feel lives in PlayerMovement, all
+## combat in PlayerCombat, all instruments in their own nodes, so each system
+## can be tuned independently.
 
 signal interaction_available(target: Node)
 signal interaction_cleared
@@ -28,7 +28,8 @@ const INTERACT_RADIUS: float = 60.0
 
 var interact_target: Node = null
 var pending_resolution: Node = null
-var _visual_root: Node2D = null
+var _visual: HunterVisual = null
+var _dash_ghost_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -40,9 +41,36 @@ func _ready() -> void:
 	combat.weapon = NightmareDatabase.default_weapon()
 	hurtbox.hit_taken.connect(combat.on_player_hit_taken)
 	health.died.connect(_on_died)
+	# Movement feel is feedback: every one of these produces something the
+	# player sees or hears, which is what makes the movement feel responsive.
+	movement.landed.connect(_on_landed)
+	movement.jumped.connect(_on_jumped)
+	movement.double_jumped.connect(_on_double_jumped)
+	movement.dashed.connect(_on_dashed)
+	combat.attack_started.connect(_on_attack_started)
 	GameManager.nightmare_resolved.connect(_on_nightmare_resolved)
 	_build_placeholder_visual()
+	_bind_camera()
 	WorldManager.enter_region(WorldManager.current_region)
+
+
+## The camera is a child of the player, so the player hands itself over rather
+## than the level having to wire the two together.
+func _bind_camera() -> void:
+	var camera: Node = get_node_or_null("Camera2D")
+	if camera is ShakeCamera:
+		(camera as ShakeCamera).bind(self)
+
+
+func _on_attack_started(kind: int) -> void:
+	# Light attacks get a whisper of movement; heavy attacks commit the body.
+	if kind in [Hitbox.Kind.HEAVY, Hitbox.Kind.CHARGED]:
+		FeedbackManager.shake(2.2, 0.09)
+		SlashArc.spawn(self, global_position + Vector2(movement.facing * 20.0, -22.0),
+			Vector2(movement.facing, -0.25).normalized(), Palette.BLADE_TRAIL, 46.0)
+	else:
+		SlashArc.spawn(self, global_position + Vector2(movement.facing * 18.0, -22.0),
+			Vector2(movement.facing, -0.35).normalized(), Palette.BLADE_TRAIL, 32.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -69,17 +97,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		abilities.activate_special(self, movement)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if health.is_dead:
 		return
-	movement.set_facing(movement.facing)
+	_dash_ghost_timer = maxf(0.0, _dash_ghost_timer - delta)
+	if _visual != null:
+		_visual.dash_ghost(_dash_ghost_timer)
+	# Mouse aiming (Settings, default on): the Hunter faces the cursor, which
+	# is what the jam requires of a keyboard + mouse game. Falls back cleanly
+	# to movement direction when the option is off.
+	if Settings.use_mouse_to_aim and _aim_from_mouse():
+		combat.set_facing(movement.facing)
+	else:
+		movement.set_facing(movement.facing)
+		combat.set_facing(movement.facing)
 	movement.set_airborne(not is_on_floor())
-	combat.set_facing(movement.facing)
 	combat.set_airborne(not is_on_floor())
-	_scale_flip()
 	_refresh_interactable()
-	abilities.tick(_delta, self)
-	resonance.tick(_delta)
+	abilities.tick(delta, self)
+	resonance.tick(delta)
+
+
+## Faces the cursor when the pointer is meaningfully away from the Hunter, so
+## a resting mouse in the middle of the screen does not pin the facing.
+func _aim_from_mouse() -> bool:
+	var camera: Camera2D = get_viewport_camera_2d()
+	if camera == null:
+		return false
+	var pointer: Vector2 = get_global_mouse_position()
+	var offset: float = pointer.x - global_position.x
+	if absf(offset) < 14.0:
+		return false
+	movement.facing = 1.0 if offset > 0.0 else -1.0
+	return true
 
 
 func _try_light() -> void:
@@ -173,38 +223,42 @@ func _on_died() -> void:
 	resonance.reset()
 
 
-# --- Placeholder visuals ----------------------------------------------------
-## Draws the Hunter with engine primitives so the prototype needs no art.
-## Swap `_visual_root` for an AnimatedSprite2D when 02 - Art & Assets lands.
+# --- Visuals ----------------------------------------------------------------
+## The Hunter is drawn in code by HunterVisual. It reads real gameplay state
+## (velocity, facing, swing phase, hurt flash) so the drawing *is* the
+## animation, which keeps a web build free of sprite sheets and import cost.
 func _build_placeholder_visual() -> void:
-	_visual_root = Node2D.new()
-	_visual_root.name = "Visual"
-	add_child(_visual_root)
-
-	var cloak := ColorRect.new()
-	cloak.color = Color(0.16, 0.14, 0.24)
-	cloak.size = Vector2(18, 30)
-	cloak.position = Vector2(-9, -22)
-	_visual_root.add_child(cloak)
-
-	var hood := ColorRect.new()
-	hood.color = Color(0.28, 0.24, 0.42)
-	hood.size = Vector2(14, 12)
-	hood.position = Vector2(-7, -32)
-	_visual_root.add_child(hood)
-
-	var lamp := ColorRect.new()
-	lamp.color = Color(0.98, 0.86, 0.45)
-	lamp.size = Vector2(5, 7)
-	lamp.position = Vector2(9, -14)
-	_visual_root.add_child(lamp)
+	_visual = HunterVisual.new()
+	_visual.name = "Visual"
+	add_child(_visual)
+	_visual.bind(self, movement, combat)
 
 
-func _scale_flip() -> void:
-	if _visual_root == null:
+## Landing has to be felt, not just observed. A heavy arrival shakes the camera
+## a little and kicks up dust; a light one does neither.
+func _on_landed(impact_speed: float) -> void:
+	if impact_speed < 220.0:
 		return
-	var target: float = movement.facing
-	if _visual_root.scale.x < 0.0 and target > 0.0:
-		_visual_root.scale.x = 1.0
-	elif _visual_root.scale.x > 0.0 and target < 0.0:
-		_visual_root.scale.x = -1.0
+	var strength: float = clampf(impact_speed / 900.0, 0.0, 0.6)
+	FeedbackManager.shake(strength * 5.0, 0.14)
+	Fx.dust(self, global_position, int(roundf(4.0 + strength * 8.0)))
+	AudioManager.play_named(&"land")
+
+
+func _on_jumped() -> void:
+	Fx.dust(self, global_position, 5)
+
+
+func _on_double_jumped() -> void:
+	Fx.burst(self, global_position + Vector2(0, -18.0), Palette.LANTERN, 8)
+
+
+func _on_dashed(direction: Vector2) -> void:
+	Fx.dust(self, global_position, 7)
+	FeedbackManager.shake(1.4, 0.07)
+	_dash_ghost_timer = 0.4
+
+
+func hit_react(_strength: float, _point: Vector2) -> void:
+	if _visual != null:
+		_visual.flash()

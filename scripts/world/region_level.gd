@@ -36,6 +36,7 @@ func _ready() -> void:
 	_spawn_content()
 	_build_parallax()
 	hud.bind_player(player)
+	_build_pause_menu()
 	GameManager.player_died.connect(_on_player_died)
 	GameManager.nightmare_resolved.connect(_on_nightmare_resolved)
 	# The prototype hunt starts immediately: the village asked about the bell.
@@ -84,36 +85,40 @@ func _add_platform(center: Vector2, size: Vector2) -> Node2D:
 	shape.shape = rectangle
 	body.add_child(shape)
 
-	var visual := ColorRect.new()
-	visual.color = Color(0.13, 0.12, 0.2)
-	visual.size = size
-	visual.position = -size * 0.5
+	# Drawn terrain instead of a flat rectangle: the landing edge is the
+	# brightest line on screen, which is what keeps platforming readable.
+	var visual := TerrainVisual.new()
 	body.add_child(visual)
+	visual.setup(size, int(center.x) * 31 + int(center.y) * 17)
 
 	platforms_root.add_child(body)
 	return body
 
 
+## Four scroll rates, all drawn in code. Depth without a texture payload,
+## which matters for a browser build (GDD 13).
 func _build_parallax() -> void:
-	# Layered backgrounds give the dream depth (GDD 13).
-	var far := Parallax2D.new()
-	far.scroll_scale = Vector2(0.2, 0.2)
-	var far_rect := ColorRect.new()
-	far_rect.color = Color(0.07, 0.06, 0.13)
-	far_rect.size = Vector2(2400, 1200)
-	far_rect.position = Vector2(-600, -900)
-	far.add_child(far_rect)
-	add_child(far)
+	_add_sky_layer(DreamSky.Layer.VOID, Vector2(0.08, 0.06), 5200.0)
+	_add_sky_layer(DreamSky.Layer.FAR, Vector2(0.22, 0.18), 5200.0)
+	_add_sky_layer(DreamSky.Layer.NEAR, Vector2(0.5, 0.42), 5200.0)
+	_add_sky_layer(DreamSky.Layer.FOG, Vector2(0.92, 0.86), 5200.0)
 
-	var near := Parallax2D.new()
-	near.scroll_scale = Vector2(0.55, 0.55)
-	for i: int in range(9):
-		var spire := ColorRect.new()
-		spire.color = Color(0.11, 0.1, 0.19)
-		spire.size = Vector2(60, 260 + float(i % 3) * 90.0)
-		spire.position = Vector2(-200 + i * 460, -200 - spire.size.y)
-		near.add_child(spire)
-	add_child(near)
+
+## Pause and the comfort settings. Built here so the region owns its own UI
+## lifetime; the autoloads stay free of anything that draws.
+func _build_pause_menu() -> void:
+	var menu := PauseMenu.new()
+	menu.name = "PauseMenu"
+	add_child(menu)
+
+
+func _add_sky_layer(layer: int, scroll: Vector2, world_span: float) -> void:
+	var parallax := Parallax2D.new()
+	parallax.scroll_scale = scroll
+	var sky := DreamSky.new()
+	parallax.add_child(sky)
+	add_child(parallax)
+	sky.setup(layer, Vector2(world_span, 1400.0), 7 + layer)
 
 
 # --- Content ----------------------------------------------------------------
@@ -185,11 +190,9 @@ func _spawn_quiet_room(at: Vector2) -> void:
 	shape.shape = rectangle
 	room.add_child(shape)
 
-	var visual := ColorRect.new()
-	visual.color = Color(0.95, 0.82, 0.42, 0.35)
-	visual.size = Vector2(46, 60)
-	visual.position = Vector2(-23, -60)
+	var visual := PropVisual.new()
 	room.add_child(visual)
+	visual.setup(PropVisual.Kind.QUIET_ROOM)
 
 	entities_root.add_child(room)
 
@@ -217,6 +220,10 @@ func _spawn_memory(
 	shape.shape = rectangle
 	memory.add_child(shape)
 
+	var visual := PropVisual.new()
+	memory.add_child(visual)
+	visual.setup(PropVisual.Kind.MEMORY)
+
 	entities_root.add_child(memory)
 
 
@@ -243,6 +250,13 @@ func _spawn_mechanism(
 	rectangle.size = Vector2(28, 40)
 	shape.shape = rectangle
 	object.add_child(shape)
+
+	# Hidden passages draw nothing until found; the rest announce themselves.
+	var visual := PropVisual.new()
+	object.add_child(visual)
+	visual.setup(
+		PropVisual.Kind.HIDDEN if object.is_hidden else PropVisual.Kind.MECHANISM
+	)
 
 	entities_root.add_child(object)
 	distortion.register_platform(object)
