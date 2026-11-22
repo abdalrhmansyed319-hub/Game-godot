@@ -237,3 +237,76 @@ jobs:
             export/web
             artifacts
           if-no-files-found: warn
+
+  # Produces the human-facing deliverable: screenshots of the running game
+  # driven by real input, committed back into the repo.
+  #
+  # GitHub Pages cannot be enabled for this repo from CI (POST /pages returns
+  # 403 "Resource not accessible by integration"), so the build itself is delivered
+  # as the `web-build` Actions artifact instead. The screenshots are committed
+  # because artifact storage is not reachable from every network.
+  playtest:
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore Godot export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-export-templates-4.7.2.stable-v2
+
+      - name: Install Godot editor binary
+        run: |
+          set -e
+          VERSION=4.7.2-stable
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${VERSION}/Godot_v${VERSION}_linux.x86_64.zip"
+          unzip -o -q /tmp/godot.zip
+          mv Godot_v${VERSION}_linux.x86_64 godot
+          chmod +x godot
+
+      - name: Import and export the Web build
+        run: |
+          set -e
+          ./godot --headless --path . --import
+          mkdir -p export/web
+          ./godot --headless --path . --export-release "Web" export/web/index.html
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Capture screenshots with real input
+        id: capture
+        continue-on-error: true
+        run: python3 tools/capture_playtest.py export/web docs/screenshots
+
+      - name: Commit screenshots back into the repo
+        if: steps.capture.outcome == 'success'
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          if git diff --cached --quiet; then
+            echo "no screenshot changes to commit"
+          else
+            git commit -m "docs: playtest screenshots captured from the running web build [skip ci]"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
+      # The build is reachable from the Actions run page as the `web-build`
+      # artifact uploaded by the `web` job.
