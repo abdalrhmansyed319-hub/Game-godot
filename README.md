@@ -20,19 +20,29 @@ Playable: press **Begin the Hunt** on the title screen.
 
 ### Controls
 
-| Action | Key | Pad |
-| --- | --- | --- |
-| Move | `A` / `D` (or arrows) | Left stick |
-| Jump (variable height, double jump) | `Space` / `Z` | A |
-| Light attack | `J` | X |
-| Heavy attack / counter | `K` | Y |
-| Dash | `Shift` / `L` | B |
-| Dream Lantern (reveal) | `F` | LB |
-| Anchor of Wakefulness (stabilise) | `G` | RB |
-| Revelation | `R` | LT |
-| Active Echo | `Q` | RT |
-| Interact | `E` | Start |
-| Journal | `N` / `Tab` | Select |
+Everything below works with keyboard **and** mouse, which the jam requires.
+Bindings live in `project.godot` under `[input]`; the comfort options
+(including mouse aiming) are on the pause menu.
+
+| Action | Key | Mouse | Pad |
+| --- | --- | --- | --- |
+| Move | `A` / `D` (or arrows) | — | Left stick |
+| Jump (variable height, double jump) | `Space` / `Z` | — | A |
+| Light attack | `J` | Left button | X |
+| Heavy attack / counter | `K` | Right button | Y |
+| Dash | `Shift` / `L` | Wheel up | B |
+| Dream Lantern (reveal) | `F` | Middle button | LB |
+| Anchor of Wakefulness (stabilise) | `G` | Mouse button 5 | RB |
+| Revelation | `R` | — | LT |
+| Active Echo | `Q` | — | RT |
+| Interact | `E` | — | Start |
+| Journal | `N` / `Tab` | — | Select |
+| Pause / settings | `Esc` | — | Start |
+
+Aiming follows the mouse cursor by default, with a 14-pixel deadzone around
+the Hunter so a resting pointer in the middle of the screen does not pin the
+facing. Turn it off in the pause menu and facing falls back to movement
+direction.
 
 All actions are remappable in **Project Settings → Input Map**.
 

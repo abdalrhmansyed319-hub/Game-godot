@@ -54,8 +54,32 @@ engine.** See the root `README.md`.
 | Real engine load (parse all scripts, resolve all scenes) | CI: Godot 4.7.2 headless `--import` | **Passing** |
 | Autoload boot + content manifest | CI: headless `--quit-after 6` | **Passing** |
 | Web export + jam constraints | CI: `--export-release "Web"` + `tools/web_export_checks.py` | **Passing** |
-| Runs in a real browser | CI: Playwright/Chromium over plain HTTP | **Passing** (run 44958236309) |
+| Runs in a real browser | CI: Playwright/Chromium over plain HTTP | **Passing** (run 45012352644) |
+| Every script parses | `gdparse` 4.5.0 over all 52 scripts | **Passing** |
 | Playtest / game feel | Manual, in the editor | **Not done** |
+
+A green `verify` job is *not* evidence the scripts parse. On four consecutive
+commits `verify` passed while `web` failed, because `--export-release` parses
+more of the project than `--quit-after 6` does. Treat `web` as the authority.
+
+### M1 — Combat & movement feel: measured results
+
+Verified on `c472df6`, CI run `45012352644` (both jobs green). Full detail and
+the playtest plan are in [`M1_PLAYTEST_REPORT.md`](M1_PLAYTEST_REPORT.md).
+
+| Measurement | Result | Jam limit |
+| --- | --- | --- |
+| First-frame payload | **38.36 MB** / 9 files | < 50 MB |
+| Growth over M2 | +0.19 MB | — |
+| Canvas / resize / console errors | 1280×720, resizes to 960×600, none | — |
+| Human playtest | **not done** | — |
+
+Every placeholder `ColorRect` is replaced by procedural `_draw()` art and all
+audio is synthesised at runtime, so the art pass added no assets. The 0.19 MB
+is compiled script.
+
+Physics changes are recorded in [`PHYSICS_NOTES.md`](PHYSICS_NOTES.md), per the
+standing rule that no major physics change goes undocumented.
 
 ### M2 — Web export: measured results
 
